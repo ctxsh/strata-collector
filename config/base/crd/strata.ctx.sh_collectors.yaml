@@ -1,0 +1,52 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: (unknown)
+  name: collectors.strata.ctx.sh
+spec:
+  group: strata.ctx.sh
+  names:
+    kind: Collector
+    listKind: CollectorList
+    plural: collectors
+    shortNames:
+    - coll
+    singular: collector
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.enabled
+      name: Enabled
+      type: boolean
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              enabled:
+                type: boolean
+            required:
+            - enabled
+            type: object
+          status:
+            properties:
+              enabled:
+                type: boolean
+            required:
+            - enabled
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources: {}
