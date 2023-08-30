@@ -18,6 +18,7 @@ that are present with the prometheus k8s integration.
 * Provide basic filtering (cut/cap/min/max) before the metrics get to the upstream.
 * Initially we'll support the following sinks: kafka, http, statsd.
 * Less resource utilization than some of the alternative options out there.
+* Leader election to support redundancy
 
 ### Non-Goals
 

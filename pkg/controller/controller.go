@@ -11,7 +11,7 @@ import (
 type Reconciler struct {
 	Client client.Client
 	Log    logr.Logger
-	Mgr ctrl.Manager
+	Mgr    ctrl.Manager
 }
 
 func (r *Reconciler) SetupWithManager(mgr ctrl.manager) error {
