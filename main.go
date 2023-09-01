@@ -3,14 +3,24 @@ package main
 import (
 	"os"
 
+	"ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
 	"ctx.sh/strata-collector/pkg/controller"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var (
-	scheme = runtime.NewScheme()
+	// Temporary logger for initial setup
+	setupLog = ctrl.Log.WithName("setup")
+	scheme   = runtime.NewScheme()
 )
+
+func init() {
+	_ = v1beta1.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
+}
 
 func main() {
 	ctx := ctrl.SetupSignalHandler()
@@ -18,26 +28,31 @@ func main() {
 	// TODO: Actually do a better job of configuring the logger.
 	ctrl.SetLogger(zap.New())
 
+	setupLog.Info("initializing manager")
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
-		Port:   9443,
 		// TODO: set up leader election once we have the dev cluster up
 		// and the cert generators.
 	})
+	if err != nil {
+		setupLog.Error(err, "unable to initialize manager")
+		os.Exit(1)
+	}
 
 	reconciler := &controller.Reconciler{
 		Client: mgr.GetClient(),
 		Log:    mgr.GetLogger().WithValues("controller", "strata"),
 	}
 
-	err := reconciler.SetupWithManager(mgr)
+	err = reconciler.SetupWithManager(mgr)
 	if err != nil {
-		// log and exit
+		setupLog.Error(err, "unable to setup reconciler")
 		os.Exit(1)
 	}
 
-	if err != mgr.Start(ctx); err != nil {
-		// log and exit
+	setupLog.Info("starting")
+	if err := mgr.Start(ctx); err != nil {
+		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 }

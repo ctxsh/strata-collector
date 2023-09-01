@@ -20,7 +20,7 @@ package strata
 
 import (
 	internalinterfaces "ctx.sh/strata-collector/pkg/client/informers/externalversions/internalinterfaces"
-	v1beta1 "ctx.sh/strata-collector/pkg/client/informers/externalversions/strata.stx.sh/v1beta1"
+	v1beta1 "ctx.sh/strata-collector/pkg/client/informers/externalversions/strata.ctx.sh/v1beta1"
 )
 
 // Interface provides access to each of this group's versions.

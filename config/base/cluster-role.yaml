@@ -1,0 +1,44 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: strata-collector-role
+rules:
+  - apiGroups:
+      - strata.ctx.sh
+    resources:
+      - collectors
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - strata.ctx.sh
+    resources:
+      - collectors/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - services
+      - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods/status
+      - services/status
+      - endpoints/status
+    verbs:
+      - get
+
