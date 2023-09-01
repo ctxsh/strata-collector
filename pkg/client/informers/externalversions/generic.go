@@ -21,7 +21,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1beta1 "ctx.sh/strata-collector/pkg/apis/strata.stx.sh/v1beta1"
+	v1beta1 "ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -52,7 +52,7 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=strata.stx.sh, Version=v1beta1
+	// Group=strata.ctx.sh, Version=v1beta1
 	case v1beta1.SchemeGroupVersion.WithResource("collectors"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Strata().V1beta1().Collectors().Informer()}, nil
 

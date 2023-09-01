@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: strata-collector
+  namespace: strata-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: strata-collector
+  template:
+    metadata:
+      labels:
+        name: strata-collector
+    spec:
+      serviceAccountName:
+        strata-collector
+      containers:
+        - name: strata-collector
+          # TODO: upload image for release when complete...
+          image: ctxsh/strata-collector:latest
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+# TODO: setup affinity

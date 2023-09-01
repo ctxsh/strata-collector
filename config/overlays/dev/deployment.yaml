@@ -1,0 +1,41 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: strata-collector
+  namespace: strata-collector
+  labels:
+    app: strata-collector 
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: strata-collector
+  template:
+    metadata:
+      labels:
+        app: strata-collector
+    spec:
+      serviceAccountName: strata-collector
+      containers:
+      - name: strata-collector
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          runAsNonRoot: false
+        image: golang:latest
+        imagePullPolicy: Never
+        workingDir: /usr/src/app
+        command:
+          - sleep
+          - infinity
+        ports:
+          - containerPort: 9090
+        volumeMounts:
+          - name: app
+            mountPath: /usr/src/app
+      volumes:
+        - name: app
+          hostPath:
+            path: /app
+  # TODO: add metrics service

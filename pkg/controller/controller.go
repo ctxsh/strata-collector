@@ -1,6 +1,9 @@
 package controller
 
 import (
+	"context"
+
+	v1beta1 "ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -14,11 +17,9 @@ type Reconciler struct {
 	Mgr    ctrl.Manager
 }
 
-func (r *Reconciler) SetupWithManager(mgr ctrl.manager) error {
-	r.Mgr
-
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		// For(strata.Collector)
+		For(&v1beta1.Collector{}).
 		WithEventFilter(r.predicates()).
 		Complete(r)
 }
@@ -35,4 +36,8 @@ func (r *Reconciler) predicates() predicate.Funcs {
 			return false
 		},
 	}
+}
+
+func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
+	return ctrl.Result{}, nil
 }

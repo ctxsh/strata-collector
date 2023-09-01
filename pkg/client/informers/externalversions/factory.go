@@ -25,7 +25,7 @@ import (
 
 	versioned "ctx.sh/strata-collector/pkg/client/clientset/versioned"
 	internalinterfaces "ctx.sh/strata-collector/pkg/client/informers/externalversions/internalinterfaces"
-	stratastxsh "ctx.sh/strata-collector/pkg/client/informers/externalversions/strata.stx.sh"
+	stratactxsh "ctx.sh/strata-collector/pkg/client/informers/externalversions/strata.ctx.sh"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -243,9 +243,9 @@ type SharedInformerFactory interface {
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
-	Strata() stratastxsh.Interface
+	Strata() stratactxsh.Interface
 }
 
-func (f *sharedInformerFactory) Strata() stratastxsh.Interface {
-	return stratastxsh.New(f, f.namespace, f.tweakListOptions)
+func (f *sharedInformerFactory) Strata() stratactxsh.Interface {
+	return stratactxsh.New(f, f.namespace, f.tweakListOptions)
 }

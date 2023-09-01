@@ -1,0 +1,7 @@
+apiVersion: strata.ctx.sh/v1beta1
+kind: Collector
+metadata:
+  name: example-collector
+  namespace: default
+spec:
+  enabled: false

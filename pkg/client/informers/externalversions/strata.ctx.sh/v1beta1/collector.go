@@ -22,10 +22,10 @@ import (
 	"context"
 	time "time"
 
-	stratastxshv1beta1 "ctx.sh/strata-collector/pkg/apis/strata.stx.sh/v1beta1"
+	stratactxshv1beta1 "ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
 	versioned "ctx.sh/strata-collector/pkg/client/clientset/versioned"
 	internalinterfaces "ctx.sh/strata-collector/pkg/client/informers/externalversions/internalinterfaces"
-	v1beta1 "ctx.sh/strata-collector/pkg/client/listers/strata.stx.sh/v1beta1"
+	v1beta1 "ctx.sh/strata-collector/pkg/client/listers/strata.ctx.sh/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -71,7 +71,7 @@ func NewFilteredCollectorInformer(client versioned.Interface, namespace string, 
 				return client.StrataV1beta1().Collectors(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&stratastxshv1beta1.Collector{},
+		&stratactxshv1beta1.Collector{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,7 +82,7 @@ func (f *collectorInformer) defaultInformer(client versioned.Interface, resyncPe
 }
 
 func (f *collectorInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&stratastxshv1beta1.Collector{}, f.defaultInformer)
+	return f.factory.InformerFor(&stratactxshv1beta1.Collector{}, f.defaultInformer)
 }
 
 func (f *collectorInformer) Lister() v1beta1.CollectorLister {
