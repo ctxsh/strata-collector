@@ -37,7 +37,7 @@ install: generate
 .PHONY: run
 run:
 	$(eval POD := $(shell kubectl get pods -n strata-collector -l name=strata-collector -o=custom-columns=:metadata.name --no-headers))
-	kubectl exec -n strata-collector -it pod/$(POD) -- bash -c "go run main.go"
+	kubectl exec -n strata-collector -it pod/$(POD) -- bash -c "go run main.go -zap-log-level=8"
 
 .PHONY: exec
 exec:
