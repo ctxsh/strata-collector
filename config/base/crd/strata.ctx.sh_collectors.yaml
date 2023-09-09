@@ -12,7 +12,7 @@ spec:
     listKind: CollectorList
     plural: collectors
     shortNames:
-    - co
+    - collect
     singular: collector
   scope: Namespaced
   versions:
@@ -20,6 +20,9 @@ spec:
     - jsonPath: .status.enabled
       name: Enabled
       type: boolean
+    - jsonPath: .spec.workers
+      name: Workers
+      type: integer
     name: v1beta1
     schema:
       openAPIV3Schema:
@@ -34,13 +37,24 @@ spec:
             properties:
               enabled:
                 type: boolean
+              intervalSeconds:
+                format: int64
+                type: integer
+              workers:
+                type: integer
+            required:
+            - intervalSeconds
+            - workers
             type: object
           status:
             properties:
               enabled:
                 type: boolean
+              lastDiscovered:
+                type: string
             required:
             - enabled
+            - lastDiscovered
             type: object
         required:
         - spec
