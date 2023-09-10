@@ -1,0 +1,118 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.13.0
+  name: discoveries.strata.ctx.sh
+spec:
+  group: strata.ctx.sh
+  names:
+    kind: Discovery
+    listKind: DiscoveryList
+    plural: discoveries
+    shortNames:
+    - discover
+    singular: discovery
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.enabled
+      name: Enabled
+      type: boolean
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              collection:
+                properties:
+                  matchExpressions:
+                    items:
+                      properties:
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        values:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - key
+                      - operator
+                      type: object
+                    type: array
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
+                x-kubernetes-map-type: atomic
+              enabled:
+                type: boolean
+              includeAnnotations:
+                items:
+                  type: string
+                type: array
+              includeLabels:
+                items:
+                  type: string
+                type: array
+              includeMetadata:
+                type: boolean
+              intervalSeconds:
+                format: int64
+                type: integer
+              prefix:
+                type: string
+              selector:
+                properties:
+                  matchExpressions:
+                    items:
+                      properties:
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        values:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - key
+                      - operator
+                      type: object
+                    type: array
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
+                x-kubernetes-map-type: atomic
+            required:
+            - collection
+            type: object
+          status:
+            properties:
+              enabled:
+                type: boolean
+              lastDiscovered:
+                type: string
+            required:
+            - enabled
+            - lastDiscovered
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources: {}

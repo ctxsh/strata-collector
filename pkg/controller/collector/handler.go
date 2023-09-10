@@ -1,27 +1,25 @@
-package controller
+package collector
 
 import (
 	"context"
 
-	"ctx.sh/strata-collector/pkg/collectors"
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type CollectorHandler struct {
-	client     client.Client
-	log        logr.Logger
-	recorder   record.EventRecorder
-	observed   ObserveredCollector
-	collectors *collectors.Manager
+type Handler struct {
+	client   client.Client
+	log      logr.Logger
+	recorder record.EventRecorder
+	observed Observed
 }
 
-func (h *CollectorHandler) reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
+func (h *Handler) reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 	h.log.V(8).Info("request received", "request", request)
 
-	observer := &CollectorObserver{
+	observer := &Observer{
 		Client:  h.client,
 		Request: request,
 		Context: ctx,
@@ -32,12 +30,11 @@ func (h *CollectorHandler) reconcile(ctx context.Context, request ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	reconciler := &CollectorReconciler{
-		client:     h.client,
-		log:        h.log,
-		recorder:   h.recorder,
-		observed:   h.observed,
-		collectors: h.collectors,
+	reconciler := &Reconciler{
+		client:   h.client,
+		log:      h.log,
+		recorder: h.recorder,
+		observed: h.observed,
 	}
 
 	result, err := reconciler.reconcile(ctx, request)

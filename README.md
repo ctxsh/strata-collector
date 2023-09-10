@@ -31,3 +31,57 @@ grows or if needed.
 
 * TODO
 
+## Notes
+
+Each one should have it's own discovery mechanism.  This will be the only thing that needs to
+be updated.  Push workers will be their own config setup.  Should the pipeline have it's own as
+well or should the channels and the buffering be part of the worker pool.  Multiple discovery
+services can go into the same collection pool so we can size for upstream.
+
+* Allows tuning and protection of upstream queues/apis/etc
+* Allows us to more effectively use resources locally
+
+What do we have now?
+
+```
+---
+apiVersion: strata.ctx.sh/v1beta1
+kind: Discovery
+metadata:
+  name: example
+  namespace: default
+  labels:
+    service: example
+spec:
+  selector:
+    matchLabels:
+      sink: redpanda
+  enabled: false
+  intervalSeconds: 10
+---
+apiVersion: strata.ctx.sh/v1beta1
+kind: Collector
+metadata:
+  name: example
+  namespace: default
+  labels:
+    sink: redpanda
+spec:
+  enabled: false
+  workers: 5
+  buffer:
+    size: 100000
+    # different intermediates will be available.  starting out
+    # with just channels, but we should add nsq and kafka (or variants)
+    # that will allow for a more robust solution that can withstand
+    # the upstreams going out.
+    type: channel
+
+```
+
+If the collector has been updated, the discovery services will need to be stopped, 
+
+Collector
+Discover
+
+Where does the buffer size end up?  Main config?

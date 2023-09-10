@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
-	"ctx.sh/strata-collector/pkg/collectors"
 	"ctx.sh/strata-collector/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,19 +45,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	reconciler := &controller.Reconciler{
-		Client:     mgr.GetClient(),
-		Log:        mgr.GetLogger().WithValues("controller", "strata"),
-		Collectors: collectors.New(),
-	}
+	controller := controller.New(mgr, &controller.ControllerOpts{
+		Logger: mgr.GetLogger(),
+	})
 
-	err = reconciler.SetupWithManager(mgr)
+	err = controller.Setup()
 	if err != nil {
-		log.Error(err, "unable to setup reconciler")
+		log.Error(err, "unable to setup controller")
 		os.Exit(1)
 	}
 
-	log.Info("starting")
+	// Start the manager process
+	log.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
 		log.Error(err, "unable to start manager")
 		os.Exit(1)

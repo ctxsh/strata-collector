@@ -22,7 +22,7 @@ codegen: controller-gen
 
 .PHONY: manifests
 manifests:
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) $(RBAC_OPTIONS) $(WEBHOOK_OPTIONS) paths="./pkg/apis/..." $(OUTPUT_OPTIONS)
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) $(RBAC_OPTIONS) $(WEBHOOK_OPTIONS) paths="./pkg/..." $(OUTPUT_OPTIONS)
 
 .PHONY: generate
 generate: codegen manifests
