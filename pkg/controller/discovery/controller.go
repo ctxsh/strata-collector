@@ -19,12 +19,12 @@ type Controller struct {
 }
 
 // SetupWithManager creates a new controller for the supplied manager which
-// watches Collectors.
+// watches Discoveries.
 func (r *Controller) SetupWithManager(mgr ctrl.Manager) error {
 	r.Mgr = mgr
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1beta1.Collector{}).
+		For(&v1beta1.Discovery{}).
 		WithEventFilter(r.predicates()).
 		Complete(r)
 }
