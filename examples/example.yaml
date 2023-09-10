@@ -1,0 +1,14 @@
+apiVersion: strata.ctx.sh/v1beta1
+kind: Discovery
+metadata:
+  name: example
+  namespace: default
+spec:
+  enabled: false
+  intervalSeconds: 10
+  selector:
+    matchLabels:
+      app: example
+  collector:
+    matchLabels:
+      sink: example

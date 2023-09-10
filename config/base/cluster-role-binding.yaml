@@ -9,5 +9,5 @@ subjects:
     namespace: strata-collector
 roleRef:
   kind: ClusterRole
-  name: strata-collector-role
+  name: strata-role
   apiGroup: rbac.authorization.k8s.io
