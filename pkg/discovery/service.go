@@ -25,20 +25,25 @@ type ServiceOpts struct {
 }
 
 type Service struct {
-	client   client.Client
-	enabled  bool
-	interval time.Duration
-	selector metav1.LabelSelector
-	logger   logr.Logger
-	metrics  *strata.Metrics
+	namespacedName typesv1.NamespacedName
+	client         client.Client
+	enabled        bool
+	interval       time.Duration
+	selector       metav1.LabelSelector
+	logger         logr.Logger
+	metrics        *strata.Metrics
 
 	stopChan chan struct{}
 	stopOnce sync.Once
 	sync.Mutex
 }
 
-func NewService(opts *ServiceOpts) *Service {
+func NewService(namespace, name string, opts *ServiceOpts) *Service {
 	return &Service{
+		namespacedName: typesv1.NamespacedName{
+			Namespace: namespace,
+			Name:      name,
+		},
 		client:   opts.Client,
 		enabled:  opts.Enabled,
 		interval: time.Duration(opts.IntervalSeconds) * time.Second,
@@ -47,6 +52,10 @@ func NewService(opts *ServiceOpts) *Service {
 		metrics:  opts.Metrics,
 		stopChan: make(chan struct{}),
 	}
+}
+
+func (s *Service) NamespacedName() typesv1.NamespacedName {
+	return s.namespacedName
 }
 
 func (s *Service) Start(sendChan chan<- collector.Resource) {
@@ -62,6 +71,9 @@ func (s *Service) Stop() {
 }
 
 func (s *Service) start(ctx context.Context, sendChan chan<- collector.Resource) {
+	// Initial discovery run
+	s.discover(ctx, sendChan)
+
 	ticker := time.NewTicker(s.interval)
 	for {
 		select {
@@ -80,14 +92,15 @@ func (s *Service) start(ctx context.Context, sendChan chan<- collector.Resource)
 			// actually hit this case since we are only interacting with the cache/api or the
 			// service is blocked on the channel meaning that the collector workers are not
 			// ablel to keep up.  None of which are solved by adding more discovery workers.
-			s.Lock()
-			defer s.Unlock()
 			s.discover(ctx, sendChan)
 		}
 	}
 }
 
 func (s *Service) discover(ctx context.Context, sendChan chan<- collector.Resource) {
+	s.Lock()
+	defer s.Unlock()
+
 	resources := make([]collector.Resource, 0)
 
 	s.logger.V(8).Info("discovering pods")
@@ -109,17 +122,27 @@ func (s *Service) discover(ctx context.Context, sendChan chan<- collector.Resour
 	// which could impact GC, but I think that's a tradeoff that we can make initially.
 
 	// TODO: send metrics to the collector
+	if len(resources) > 0 {
+		s.logger.V(8).Info("sending resources to collector", "count", len(resources))
+		for _, resource := range resources {
+			sendChan <- resource
+		}
+	}
 
 	// TODO: update the status of the discovery service
+	s.logger.V(8).Info("finished discovery run", "discovered", len(resources))
 }
 
 // discoverPods lists all pods that match the selector and if the scrape annotation
 // is set to true, will create the collection resource and send it to the collector.
 func (s *Service) discoverPods(ctx context.Context, res *[]collector.Resource) error {
 	var list corev1.PodList
-	err := s.client.List(ctx, &list, &client.ListOptions{
+
+	opts := &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(s.selector.MatchLabels),
-	})
+	}
+
+	err := s.client.List(ctx, &list, opts)
 	if err != nil {
 		return err
 	}

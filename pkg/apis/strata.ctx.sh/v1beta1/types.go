@@ -7,9 +7,9 @@ import (
 // DiscoverySpec represents the parameters for the discovery service.
 type DiscoverySpec struct {
 	// +required
-	// Collection is the label selector used to identify the collector
+	// Collector is the label selector used to identify the collector
 	// pool that will be used for processing.
-	Collection metav1.LabelSelector `json:"collection"`
+	Collector metav1.LabelSelector `json:"collector"`
 	// +optional
 	// Selector is the label selector used to filter the resources
 	// used by the discovery service.  If not set, then all resources will
@@ -50,7 +50,11 @@ type DiscoverySpec struct {
 // DiscoveryStatus represents the status of a discovery service.
 type DiscoveryStatus struct {
 	Enabled        bool   `json:"enabled"`
+	Connected      bool   `json:"connected"`
 	LastDiscovered string `json:"lastDiscovered"`
+	// CollectorTargetRef is a reference to the collector pool that will
+	// be used for processing discovered resources.
+	CollectorTargetRef metav1.OwnerReference `json:"collectorTargetRef"`
 }
 
 // +genclient
@@ -94,9 +98,9 @@ type CollectorSpec struct {
 type CollectorStatus struct {
 	// Enabled represents whether the collector pool is enabled or not.
 	Enabled bool `json:"enabled"`
-	// Discoveries represents the list of discoveries that are sending
-	// discovered resources to the collector pool.
-	Discoveries []string `json:"discoveries"`
+	// DiscoveryTargetRefs is a list of discovery services that use the collector
+	// pool for processing.
+	DiscoveryTargetRefs []metav1.OwnerReference `json:"discoveryTargetRefs"`
 }
 
 // +genclient

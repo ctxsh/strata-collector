@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 
+	"ctx.sh/strata-collector/pkg/controller/registry"
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -14,6 +15,7 @@ type Reconciler struct {
 	log      logr.Logger
 	observed Observed
 	recorder record.EventRecorder
+	registry *registry.Registry
 }
 
 // var requeueResult reconcile.Result = ctrl.Result{

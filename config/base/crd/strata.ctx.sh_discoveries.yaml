@@ -32,7 +32,7 @@ spec:
             type: object
           spec:
             properties:
-              collection:
+              collector:
                 properties:
                   matchExpressions:
                     items:
@@ -98,15 +98,37 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
             required:
-            - collection
+            - collector
             type: object
           status:
             properties:
+              collectorTargetRef:
+                properties:
+                  apiVersion:
+                    type: string
+                  blockOwnerDeletion:
+                    type: boolean
+                  controller:
+                    type: boolean
+                  kind:
+                    type: string
+                  name:
+                    type: string
+                  uid:
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                - uid
+                type: object
+                x-kubernetes-map-type: atomic
               enabled:
                 type: boolean
               lastDiscovered:
                 type: string
             required:
+            - collectorTargetRef
             - enabled
             - lastDiscovered
             type: object

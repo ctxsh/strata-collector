@@ -4,6 +4,7 @@ import (
 	"context"
 
 	v1beta1 "ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
+	"ctx.sh/strata-collector/pkg/controller/registry"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -13,9 +14,10 @@ import (
 
 // Controller Interface implementation
 type Controller struct {
-	Client client.Client
-	Log    logr.Logger
-	Mgr    ctrl.Manager
+	Client   client.Client
+	Log      logr.Logger
+	Mgr      ctrl.Manager
+	Registry *registry.Registry
 }
 
 // SetupWithManager creates a new controller for the supplied manager which
@@ -38,6 +40,7 @@ func (r *Controller) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 		client:   r.Mgr.GetClient(),
 		log:      r.Log.WithValues("name", request.Name, "namespace", request.Namespace),
 		recorder: r.Mgr.GetEventRecorderFor("StrataCollector"),
+		registry: r.Registry,
 	}
 	return handler.reconcile(ctx, request)
 }

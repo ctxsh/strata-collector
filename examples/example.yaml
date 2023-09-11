@@ -5,6 +5,7 @@ metadata:
   namespace: default
 spec:
   enabled: false
+  prefix: prometheus.io
   intervalSeconds: 10
   selector:
     matchLabels:
