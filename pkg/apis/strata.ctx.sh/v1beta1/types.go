@@ -34,8 +34,8 @@ type DiscoverySpec struct {
 	// +optional
 	// IncludeMetadata determines whether or not the metadata for the resource
 	// will be added as tags to the metrics that are collected.  By default
-	// the metadata will not be included.  If set to true, then the name, namespace,
-	// and resourceVersion will be added as tags.
+	// the metadata will not be included.  If set to true, then the namespace,
+	// resource kind, and resource version will be added as tags.
 	IncludeMetadata *bool `json:"includeMetadata"`
 	// +optional
 	// IntervalSeconds is the interval in seconds that the discovery worker
@@ -81,6 +81,28 @@ type DiscoveryList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Discovery `json:"items"`
+}
+
+// TLS represents the configurations needed to establish a TLS connection
+// to a scrape endpoint.  This will probably change a bit when I start working
+// on the collector and setting up the http client.  We should allow the service
+// to pull in certs from k8s as well, but this will allow mounting those secrets
+// into the pod.  TBH, I don't know how often this will be used since most scrape
+// endpoints that I've seen have not been encrypted.
+type TLS struct {
+	// +optional
+	// Path to the CA certificate
+	CA *string `json:"ca,omitempty"`
+	// +optional
+	// Path to the certificate file
+	Cert *string `json:"cert,omitempty"`
+	// +optional
+	// Path to the private key
+	Key *string `json:"key,omitempty"`
+	// +optional
+	// InsecureSkipVerify enables/disables certificate verification between the collector and
+	// the scrape endpoint.
+	InsecureSkipVerify *bool `json:"inseccureSkipVerify,omitempty"`
 }
 
 // CollectorSpec represents the parameters for the collector service.

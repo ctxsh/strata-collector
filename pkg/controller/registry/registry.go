@@ -9,6 +9,7 @@ import (
 	"ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
 	"ctx.sh/strata-collector/pkg/collector"
 	"ctx.sh/strata-collector/pkg/discovery"
+	"ctx.sh/strata-collector/pkg/resource"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,7 +34,7 @@ type Registry struct {
 	discard     *collector.Discard
 	discoveries map[types.NamespacedName]*discovery.Service
 	collectors  map[types.NamespacedName]*collector.Pool
-	channels    map[types.NamespacedName]chan<- collector.Resource
+	channels    map[types.NamespacedName]chan<- resource.Resource
 
 	sync.Mutex
 }
@@ -56,7 +57,7 @@ func New(mgr ctrl.Manager, opts *RegistryOpts) *Registry {
 		discard:     discard,
 		discoveries: make(map[types.NamespacedName]*discovery.Service),
 		collectors:  make(map[types.NamespacedName]*collector.Pool),
-		channels:    make(map[types.NamespacedName]chan<- collector.Resource),
+		channels:    make(map[types.NamespacedName]chan<- resource.Resource),
 	}
 }
 
@@ -66,6 +67,7 @@ func (r *Registry) AddDiscoveryService(ctx context.Context, key types.Namespaced
 
 	// Check to see if we already have a discovery service for this key and if so, stop it.
 	if s, ok := r.discoveries[key]; ok {
+		r.logger.V(8).Info("updating existing discovery service")
 		s.Stop()
 	}
 
@@ -77,7 +79,7 @@ func (r *Registry) AddDiscoveryService(ctx context.Context, key types.Namespaced
 		Logger:          r.logger.WithValues("discovery", key),
 	})
 
-	var sendChan chan<- collector.Resource
+	var sendChan chan<- resource.Resource
 
 	collectorObj, err := r.getCollector(ctx, obj.Spec)
 	if err != nil {

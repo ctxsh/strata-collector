@@ -123,12 +123,15 @@ spec:
                 - uid
                 type: object
                 x-kubernetes-map-type: atomic
+              connected:
+                type: boolean
               enabled:
                 type: boolean
               lastDiscovered:
                 type: string
             required:
             - collectorTargetRef
+            - connected
             - enabled
             - lastDiscovered
             type: object

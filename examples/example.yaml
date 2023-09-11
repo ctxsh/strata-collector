@@ -7,9 +7,9 @@ spec:
   enabled: false
   prefix: prometheus.io
   intervalSeconds: 10
-  selector:
-    matchLabels:
-      app: example
+  # selector:
+  #   matchLabels:
+  #     app: example
   collector:
     matchLabels:
       sink: example

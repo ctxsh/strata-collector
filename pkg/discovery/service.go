@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"ctx.sh/strata"
-	"ctx.sh/strata-collector/pkg/collector"
+	"ctx.sh/strata-collector/pkg/resource"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,7 +58,7 @@ func (s *Service) NamespacedName() typesv1.NamespacedName {
 	return s.namespacedName
 }
 
-func (s *Service) Start(sendChan chan<- collector.Resource) {
+func (s *Service) Start(sendChan chan<- resource.Resource) {
 	s.logger.Info("starting discovery service")
 	// TODO: manage context better
 	go s.start(context.Background(), sendChan)
@@ -70,7 +70,7 @@ func (s *Service) Stop() {
 	})
 }
 
-func (s *Service) start(ctx context.Context, sendChan chan<- collector.Resource) {
+func (s *Service) start(ctx context.Context, sendChan chan<- resource.Resource) {
 	// Initial discovery run
 	s.discover(ctx, sendChan)
 
@@ -97,11 +97,11 @@ func (s *Service) start(ctx context.Context, sendChan chan<- collector.Resource)
 	}
 }
 
-func (s *Service) discover(ctx context.Context, sendChan chan<- collector.Resource) {
+func (s *Service) discover(ctx context.Context, sendChan chan<- resource.Resource) {
 	s.Lock()
 	defer s.Unlock()
 
-	resources := make([]collector.Resource, 0)
+	resources := make([]resource.Resource, 0)
 
 	s.logger.V(8).Info("discovering pods")
 	err := s.discoverPods(ctx, &resources)
@@ -135,7 +135,7 @@ func (s *Service) discover(ctx context.Context, sendChan chan<- collector.Resour
 
 // discoverPods lists all pods that match the selector and if the scrape annotation
 // is set to true, will create the collection resource and send it to the collector.
-func (s *Service) discoverPods(ctx context.Context, res *[]collector.Resource) error {
+func (s *Service) discoverPods(ctx context.Context, res *[]resource.Resource) error {
 	var list corev1.PodList
 
 	opts := &client.ListOptions{
@@ -149,14 +149,18 @@ func (s *Service) discoverPods(ctx context.Context, res *[]collector.Resource) e
 
 	for _, pod := range list.Items {
 		// TODO: configurable prefix for annotations
-		annotations := getAnnotations(pod.Annotations, "prometheus.io")
-		if annotations["scrape"] != "true" {
+		cr := resource.New(pod.GetAnnotations(), "prometheus.io")
+		if !cr.Scrape {
 			continue
 		}
 
 		s.logger.V(8).Info("pod found", "obj", pod.ObjectMeta)
-		// TODO: handle pod resource creation
-		*res = append(*res, collector.Resource{})
+
+		cr = cr.WithMetadata(pod.DeepCopy()).
+			WithIP(pod.Status.PodIP).
+			WithAnnotations(pod.Annotations).
+			WithLabels(pod.Labels)
+		*res = append(*res, *cr)
 	}
 
 	return nil
@@ -166,7 +170,7 @@ func (s *Service) discoverPods(ctx context.Context, res *[]collector.Resource) e
 // annotation is set to true, will create the collection resource and send it to
 // the collector.  If the service is a headless service, then it will discover
 // the endpoints and create the collection resource for each endpoint.
-func (s *Service) discoverServices(ctx context.Context, res *[]collector.Resource) error {
+func (s *Service) discoverServices(ctx context.Context, res *[]resource.Resource) error {
 	var list corev1.ServiceList
 	err := s.client.List(ctx, &list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(s.selector.MatchLabels),
@@ -177,18 +181,22 @@ func (s *Service) discoverServices(ctx context.Context, res *[]collector.Resourc
 
 	for _, svc := range list.Items {
 		// TODO: configurable prefix for annotations
-		annotations := getAnnotations(svc.Annotations, "prometheus.io")
-		if annotations["scrape"] != "true" {
+		cr := resource.New(svc.Annotations, "prometheus.io")
+		if !cr.Scrape {
 			continue
 		}
 
 		if svc.Spec.ClusterIP == "None" {
 			s.logger.V(8).Info("headless service encountered, discovering endpoints")
-			return s.discoverEndpoints(ctx, svc, annotations, res)
+			return s.discoverEndpoints(ctx, svc, res)
 		}
 
 		s.logger.V(8).Info("service found", "obj", svc.ObjectMeta)
-		*res = append(*res, collector.Resource{})
+		cr = cr.WithMetadata(svc.DeepCopy()).
+			WithIP(svc.Spec.ClusterIP).
+			WithAnnotations(svc.Annotations).
+			WithLabels(svc.Labels)
+		*res = append(*res, *cr)
 	}
 
 	return nil
@@ -197,7 +205,9 @@ func (s *Service) discoverServices(ctx context.Context, res *[]collector.Resourc
 // discoverEndpoints lists all endpoints that match the selector and sends the
 // collection resource to the collector.  We don't need to check the scrape annotation
 // since that is handled by the service discovery.
-func (s *Service) discoverEndpoints(ctx context.Context, svc corev1.Service, annotations map[string]string, res *[]collector.Resource) error {
+// TODO: instead of passing the service object along, create a metadata struct which
+// will have all the info and can be attached to the resource.
+func (s *Service) discoverEndpoints(ctx context.Context, svc corev1.Service, res *[]resource.Resource) error {
 	var endpoints corev1.Endpoints
 	err := s.client.Get(ctx, typesv1.NamespacedName{
 		Namespace: svc.GetNamespace(),
@@ -207,12 +217,17 @@ func (s *Service) discoverEndpoints(ctx context.Context, svc corev1.Service, ann
 		return err
 	}
 
-	// meta := svc.ObjectMeta
-
 	for _, sset := range endpoints.Subsets {
-		for _, ip := range sset.Addresses {
-			s.logger.V(8).Info("pod found", "obj", svc.ObjectMeta, "ip", ip)
-			*res = append(*res, collector.Resource{})
+		for _, addr := range sset.Addresses {
+			cr := resource.New(svc.Annotations, "prometheus.io")
+			// We're not checking for the scrape condition here as that we are using
+			// the parent service as the authority for this and it's already been checked.
+			s.logger.V(8).Info("pod found", "obj", svc.ObjectMeta, "ip", addr.IP)
+			cr = cr.WithMetadataRef(addr.TargetRef).
+				WithIP(addr.IP).
+				WithAnnotations(svc.Annotations).
+				WithLabels(svc.Labels)
+			*res = append(*res, *cr)
 		}
 	}
 

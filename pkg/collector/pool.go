@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"ctx.sh/strata"
+	"ctx.sh/strata-collector/pkg/resource"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -19,7 +20,7 @@ type Pool struct {
 	namespacedName types.NamespacedName
 	numCollectors  int64
 	workers        []*Worker
-	recvChan       chan Resource
+	recvChan       chan resource.Resource
 
 	discard bool
 
@@ -36,7 +37,7 @@ func NewPool(namespace, name string, opts *PoolOpts) *Pool {
 		numCollectors: opts.NumCollectors,
 		workers:       make([]*Worker, opts.NumCollectors),
 		// TODO: make this configurable
-		recvChan: make(chan Resource, 10000),
+		recvChan: make(chan resource.Resource, 10000),
 	}
 }
 
@@ -53,7 +54,7 @@ func (p *Pool) Stop() {
 	})
 }
 
-func (p *Pool) SendChan() chan<- Resource {
+func (p *Pool) SendChan() chan<- resource.Resource {
 	return p.recvChan
 }
 

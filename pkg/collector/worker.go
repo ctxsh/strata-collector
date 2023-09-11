@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"ctx.sh/strata-collector/pkg/resource"
 	"github.com/go-logr/logr"
 )
 
@@ -30,11 +31,11 @@ func NewWorker(opt *WorkerOpts) *Worker {
 	}
 }
 
-func (w *Worker) Start(recvChan chan *Resource) {
+func (w *Worker) Start(recvChan chan *resource.Resource) {
 	go w.start(recvChan)
 }
 
-func (w *Worker) start(recvChan chan *Resource) {
+func (w *Worker) start(recvChan chan *resource.Resource) {
 	for r := range recvChan {
 		w.collectAndSend(r)
 	}
@@ -42,7 +43,7 @@ func (w *Worker) start(recvChan chan *Resource) {
 	w.log.V(8).Info("worker shutting down")
 }
 
-func (w *Worker) collectAndSend(r *Resource) {
+func (w *Worker) collectAndSend(r *resource.Resource) {
 	if err := w.collect(); err != nil {
 		w.log.Error(err, "failed to collect resource", "resource", r)
 		return

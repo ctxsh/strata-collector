@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"ctx.sh/strata"
+	"ctx.sh/strata-collector/pkg/resource"
 	"github.com/go-logr/logr"
 )
 
@@ -15,14 +16,18 @@ type DiscardOpts struct {
 }
 
 type Discard struct {
-	recvChan chan Resource
+	recvChan chan resource.Resource
+	logger   logr.Logger
+	metrics  *strata.Metrics
 
 	stopOnce sync.Once
 }
 
 func NewDiscard(opts *DiscardOpts) *Discard {
 	return &Discard{
-		recvChan: make(chan Resource),
+		logger:   opts.Logger,
+		metrics:  opts.Metrics,
+		recvChan: make(chan resource.Resource),
 	}
 }
 
@@ -31,8 +36,9 @@ func (d *Discard) Start() {
 }
 
 func (d *Discard) start() {
-	for range d.recvChan {
+	for r := range d.recvChan {
 		// metrics and discard
+		d.logger.V(8).Info("discarding resource", "resource", r)
 	}
 }
 
@@ -42,6 +48,6 @@ func (d *Discard) Stop() {
 	})
 }
 
-func (d *Discard) SendChan() chan<- Resource {
+func (d *Discard) SendChan() chan<- resource.Resource {
 	return d.recvChan
 }
