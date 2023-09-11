@@ -19,6 +19,7 @@ type ServiceOpts struct {
 	Client          client.Client
 	Enabled         bool
 	IntervalSeconds int64
+	Prefix          string
 	Selector        metav1.LabelSelector
 	Logger          logr.Logger
 	Metrics         *strata.Metrics
@@ -29,6 +30,7 @@ type Service struct {
 	client         client.Client
 	enabled        bool
 	interval       time.Duration
+	prefix         string
 	selector       metav1.LabelSelector
 	logger         logr.Logger
 	metrics        *strata.Metrics
@@ -47,6 +49,7 @@ func NewService(namespace, name string, opts *ServiceOpts) *Service {
 		client:   opts.Client,
 		enabled:  opts.Enabled,
 		interval: time.Duration(opts.IntervalSeconds) * time.Second,
+		prefix:   opts.Prefix,
 		selector: opts.Selector,
 		logger:   opts.Logger,
 		metrics:  opts.Metrics,
@@ -149,7 +152,7 @@ func (s *Service) discoverPods(ctx context.Context, res *[]resource.Resource) er
 
 	for _, pod := range list.Items {
 		// TODO: configurable prefix for annotations
-		cr := resource.New(pod.GetAnnotations(), "prometheus.io")
+		cr := resource.New(pod.GetAnnotations(), s.prefix)
 		if !cr.Scrape {
 			continue
 		}
@@ -181,7 +184,7 @@ func (s *Service) discoverServices(ctx context.Context, res *[]resource.Resource
 
 	for _, svc := range list.Items {
 		// TODO: configurable prefix for annotations
-		cr := resource.New(svc.Annotations, "prometheus.io")
+		cr := resource.New(svc.Annotations, s.prefix)
 		if !cr.Scrape {
 			continue
 		}
@@ -219,7 +222,7 @@ func (s *Service) discoverEndpoints(ctx context.Context, svc corev1.Service, res
 
 	for _, sset := range endpoints.Subsets {
 		for _, addr := range sset.Addresses {
-			cr := resource.New(svc.Annotations, "prometheus.io")
+			cr := resource.New(svc.Annotations, s.prefix)
 			// We're not checking for the scrape condition here as that we are using
 			// the parent service as the authority for this and it's already been checked.
 			s.logger.V(8).Info("pod found", "obj", svc.ObjectMeta, "ip", addr.IP)

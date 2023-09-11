@@ -76,6 +76,7 @@ func (r *Registry) AddDiscoveryService(ctx context.Context, key types.Namespaced
 		Enabled:         *obj.Spec.Enabled,
 		IntervalSeconds: *obj.Spec.IntervalSeconds,
 		Selector:        obj.Spec.Selector,
+		Prefix:          *obj.Spec.Prefix,
 		Logger:          r.logger.WithValues("discovery", key),
 	})
 
