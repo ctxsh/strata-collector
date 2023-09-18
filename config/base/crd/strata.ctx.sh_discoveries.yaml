@@ -17,9 +17,15 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.enabled
-      name: Enabled
+    - jsonPath: .spec.enabled
+      name: Active
       type: boolean
+    - jsonPath: .status.ready
+      name: Ready
+      type: string
+    - jsonPath: .status.lastDiscovered
+      name: Last Discovered
+      type: string
     name: v1beta1
     schema:
       openAPIV3Schema:
@@ -32,30 +38,26 @@ spec:
             type: object
           spec:
             properties:
-              collection:
-                properties:
-                  matchExpressions:
-                    items:
-                      properties:
-                        key:
-                          type: string
-                        operator:
-                          type: string
-                        values:
-                          items:
-                            type: string
-                          type: array
-                      required:
-                      - key
-                      - operator
-                      type: object
-                    type: array
-                  matchLabels:
-                    additionalProperties:
+              collector:
+                items:
+                  properties:
+                    apiVersion:
                       type: string
-                    type: object
-                type: object
-                x-kubernetes-map-type: atomic
+                    fieldPath:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                    resourceVersion:
+                      type: string
+                    uid:
+                      type: string
+                  type: object
+                  x-kubernetes-map-type: atomic
+                type: array
               enabled:
                 type: boolean
               includeAnnotations:
@@ -98,17 +100,21 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
             required:
-            - collection
+            - collector
             type: object
           status:
             properties:
-              enabled:
+              active:
                 type: boolean
               lastDiscovered:
+                format: date-time
+                type: string
+              ready:
                 type: string
             required:
-            - enabled
+            - active
             - lastDiscovered
+            - ready
             type: object
         required:
         - spec

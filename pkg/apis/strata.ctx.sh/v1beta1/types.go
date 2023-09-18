@@ -1,15 +1,16 @@
 package v1beta1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // DiscoverySpec represents the parameters for the discovery service.
 type DiscoverySpec struct {
 	// +required
-	// Collection is the label selector used to identify the collector
+	// Collector is the label selector used to identify the collector
 	// pool that will be used for processing.
-	Collection metav1.LabelSelector `json:"collection"`
+	Collectors []corev1.ObjectReference `json:"collector"`
 	// +optional
 	// Selector is the label selector used to filter the resources
 	// used by the discovery service.  If not set, then all resources will
@@ -34,8 +35,8 @@ type DiscoverySpec struct {
 	// +optional
 	// IncludeMetadata determines whether or not the metadata for the resource
 	// will be added as tags to the metrics that are collected.  By default
-	// the metadata will not be included.  If set to true, then the name, namespace,
-	// and resourceVersion will be added as tags.
+	// the metadata will not be included.  If set to true, then the namespace,
+	// resource kind, and resource version will be added as tags.
 	IncludeMetadata *bool `json:"includeMetadata"`
 	// +optional
 	// IntervalSeconds is the interval in seconds that the discovery worker
@@ -49,8 +50,18 @@ type DiscoverySpec struct {
 
 // DiscoveryStatus represents the status of a discovery service.
 type DiscoveryStatus struct {
-	Enabled        bool   `json:"enabled"`
-	LastDiscovered string `json:"lastDiscovered"`
+	// Active represents whether or not the discovery service is actively discovering
+	// resources.
+	Active bool `json:"active"`
+	// LastDiscovered is the last time that the discovery service
+	// ran and discovered resources.
+	LastDiscovered metav1.Time `json:"lastDiscovered"`
+	// Ready is the number of upstream collectors that are connected and ready
+	// to recieved the discovered resources.  It is is displayed in the format
+	// of "ready/unready" where ready is the number of collectors that are currently
+	// connected and recieving resources and unready is the number of collectors
+	// that are not connected or are disabled.
+	Ready string `json:"ready"`
 }
 
 // +genclient
@@ -58,7 +69,9 @@ type DiscoveryStatus struct {
 // +k8s:defaulter-gen=true
 // +kubebuilder:subresources:status
 // +kubebuilder:resource:scope=Namespaced,shortName=discover,singular=discovery
-// +kubebuilder:printcolumn:name="Enabled",type="boolean",JSONPath=".status.enabled"
+// +kubebuilder:printcolumn:name="Active",type="boolean",JSONPath=".spec.enabled"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready"
+// +kubebuilder:printcolumn:name="Last Discovered",type="string",JSONPath=".status.lastDiscovered"
 
 // Discovery represents a discovery service that will collect pods, services, and
 // endpoints from a k8s cluster.
@@ -79,6 +92,28 @@ type DiscoveryList struct {
 	Items           []Discovery `json:"items"`
 }
 
+// TLS represents the configurations needed to establish a TLS connection
+// to a scrape endpoint.  This will probably change a bit when I start working
+// on the collector and setting up the http client.  We should allow the service
+// to pull in certs from k8s as well, but this will allow mounting those secrets
+// into the pod.  TBH, I don't know how often this will be used since most scrape
+// endpoints that I've seen have not been encrypted.
+type TLS struct {
+	// +optional
+	// Path to the CA certificate
+	CA *string `json:"ca,omitempty"`
+	// +optional
+	// Path to the certificate file
+	Cert *string `json:"cert,omitempty"`
+	// +optional
+	// Path to the private key
+	Key *string `json:"key,omitempty"`
+	// +optional
+	// InsecureSkipVerify enables/disables certificate verification between the collector and
+	// the scrape endpoint.
+	InsecureSkipVerify *bool `json:"inseccureSkipVerify,omitempty"`
+}
+
 // CollectorSpec represents the parameters for the collector service.
 type CollectorSpec struct {
 	// +optional
@@ -94,9 +129,17 @@ type CollectorSpec struct {
 type CollectorStatus struct {
 	// Enabled represents whether the collector pool is enabled or not.
 	Enabled bool `json:"enabled"`
-	// Discoveries represents the list of discoveries that are sending
-	// discovered resources to the collector pool.
-	Discoveries []string `json:"discoveries"`
+	// ID is the unique identifier for the collector pool.  Initially we can use it to
+	// track the processing channels, but I think it would be beneficial to use it to
+	// potentially add to the metrics that are collected as a reference back to the
+	// pool that it was collected from.  For the most part this won't grow too large
+	// and impact cardinality, however in restart conditions the id would be reset...
+	// so it would only really be useful for short term correlations.  It's going to
+	// be a uuid represented as a string.
+	ID string `json:"id"`
+	// DiscoveryTargetRefs is a list of discovery services that use the collector
+	// pool for processing.
+	DiscoveryTargetRefs []corev1.ObjectReference `json:"discoveryTargetRefs"`
 }
 
 // +genclient
@@ -112,8 +155,9 @@ type CollectorStatus struct {
 type Collector struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              CollectorSpec   `json:"spec"`
-	Status            CollectorStatus `json:"status"`
+	Spec              CollectorSpec `json:"spec"`
+	// +optional
+	Status CollectorStatus `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

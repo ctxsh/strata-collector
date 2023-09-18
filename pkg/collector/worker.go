@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"ctx.sh/strata-collector/pkg/resource"
 	"github.com/go-logr/logr"
 )
 
@@ -12,12 +13,12 @@ const (
 )
 
 type WorkerOpts struct {
-	Log logr.Logger
+	Logger logr.Logger
 }
 
 type Worker struct {
 	httpClient http.Client
-	log        logr.Logger
+	logger     logr.Logger
 }
 
 func NewWorker(opt *WorkerOpts) *Worker {
@@ -26,30 +27,31 @@ func NewWorker(opt *WorkerOpts) *Worker {
 		httpClient: http.Client{
 			Timeout: DefaultTimeout,
 		},
-		log: opt.Log,
+		logger: opt.Logger,
 	}
 }
 
-func (w *Worker) Start(recvChan chan *Resource) {
+func (w *Worker) Start(recvChan chan *resource.Resource) {
 	go w.start(recvChan)
 }
 
-func (w *Worker) start(recvChan chan *Resource) {
+func (w *Worker) start(recvChan chan *resource.Resource) {
 	for r := range recvChan {
 		w.collectAndSend(r)
 	}
 
-	w.log.V(8).Info("worker shutting down")
+	w.logger.V(8).Info("worker shutting down")
 }
 
-func (w *Worker) collectAndSend(r *Resource) {
+func (w *Worker) collectAndSend(r *resource.Resource) {
+	w.logger.V(8).Info("collecting resource", "resource", r)
 	if err := w.collect(); err != nil {
-		w.log.Error(err, "failed to collect resource", "resource", r)
+		w.logger.Error(err, "failed to collect resource", "resource", r)
 		return
 	}
 
 	if err := w.send(); err != nil {
-		w.log.Error(err, "failed to send resource", "resource", r)
+		w.logger.Error(err, "failed to send resource", "resource", r)
 		return
 	}
 }

@@ -4,11 +4,23 @@ metadata:
   name: example
   namespace: default
 spec:
-  enabled: false
+  enabled: true
+  prefix: prometheus.io
   intervalSeconds: 10
-  selector:
-    matchLabels:
-      app: example
+  # selector:
+  #   matchLabels:
+  #     app: example
   collector:
-    matchLabels:
-      sink: example
+    - name: example
+      namespace: default
+---
+apiVersion: strata.ctx.sh/v1beta1
+kind: Collector
+metadata:
+  name: example
+  namespace: default
+  labels:
+    sink: example
+spec:
+  enabled: true
+  workers: 10

@@ -4,6 +4,7 @@ import (
 	"ctx.sh/strata"
 	"ctx.sh/strata-collector/pkg/controller/collector"
 	"ctx.sh/strata-collector/pkg/controller/discovery"
+	"ctx.sh/strata-collector/pkg/controller/registry"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -14,9 +15,10 @@ type ControllerOpts struct {
 }
 
 type Controller struct {
-	mgr     ctrl.Manager
-	logger  logr.Logger
-	metrics *strata.Metrics
+	mgr      ctrl.Manager
+	logger   logr.Logger
+	metrics  *strata.Metrics
+	registry *registry.Registry
 }
 
 func New(mgr ctrl.Manager, opts *ControllerOpts) *Controller {
@@ -24,14 +26,22 @@ func New(mgr ctrl.Manager, opts *ControllerOpts) *Controller {
 		mgr:     mgr,
 		logger:  opts.Logger,
 		metrics: opts.Metrics,
+		registry: registry.New(mgr, &registry.RegistryOpts{
+			Cache:   mgr.GetCache(),
+			Client:  mgr.GetClient(),
+			Logger:  opts.Logger,
+			Metrics: opts.Metrics,
+		}),
 	}
 }
 
 func (c *Controller) Setup() error {
 	// Set up collector controller.
 	collectorController := &collector.Controller{
-		Client: c.mgr.GetClient(),
-		Log:    c.mgr.GetLogger().WithValues("controller", "collector"),
+		Client:   c.mgr.GetClient(),
+		Cache:    c.mgr.GetCache(),
+		Log:      c.mgr.GetLogger().WithValues("controller", "collector"),
+		Registry: c.registry,
 	}
 
 	err := collectorController.SetupWithManager(c.mgr)
@@ -41,8 +51,9 @@ func (c *Controller) Setup() error {
 
 	// Set up discovery controller.
 	discoveryController := &discovery.Controller{
-		Client: c.mgr.GetClient(),
-		Log:    c.mgr.GetLogger().WithValues("controller", "discovery"),
+		Client:   c.mgr.GetClient(),
+		Log:      c.mgr.GetLogger().WithValues("controller", "discovery"),
+		Registry: c.registry,
 	}
 
 	err = discoveryController.SetupWithManager(c.mgr)
