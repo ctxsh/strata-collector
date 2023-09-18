@@ -9,59 +9,50 @@ import (
 	"ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
 	"ctx.sh/strata-collector/pkg/collector"
 	"ctx.sh/strata-collector/pkg/discovery"
-	"ctx.sh/strata-collector/pkg/resource"
+
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// RegistryOpts are the options for the registry.
 type RegistryOpts struct {
+	Cache   cache.Cache
+	Client  client.Client
 	Logger  logr.Logger
 	Metrics *strata.Metrics
 }
 
+// Registry is the discovery service and collector retistry.  It is responsible for
+// managing the relationship between discovery services and collectors.  It creates
+// and manages the discovery services and collectors.  It also manages the channels
+// that are used by the both services.
 type Registry struct {
-	// Collections *collector.Manager
-	// Discoveries *discovery.Manager
-
-	client client.Client
-	ctx    context.Context
-
-	metrics *strata.Metrics
-	logger  logr.Logger
-
-	discard     *collector.Discard
+	cache       cache.Cache
+	client      client.Client
+	logger      logr.Logger
+	metrics     *strata.Metrics
 	discoveries map[types.NamespacedName]*discovery.Service
-	collectors  map[types.NamespacedName]*collector.Pool
-	channels    map[types.NamespacedName]chan<- resource.Resource
+	collectors  map[types.NamespacedName]collector.Collector
 
 	sync.Mutex
 }
 
 func New(mgr ctrl.Manager, opts *RegistryOpts) *Registry {
-	// Proabaly want to managed the discard collector differently.
-	discard := collector.NewDiscard(&collector.DiscardOpts{
-		Logger:  opts.Logger.WithValues("collector", "discard"),
-		Metrics: opts.Metrics,
-	})
-	discard.Start()
-
 	return &Registry{
-		client: mgr.GetClient(),
-		ctx:    context.Background(),
-
-		metrics: opts.Metrics,
-		logger:  opts.Logger,
-
-		discard:     discard,
+		cache:       opts.Cache,
+		client:      opts.Client,
+		logger:      opts.Logger,
+		metrics:     opts.Metrics,
 		discoveries: make(map[types.NamespacedName]*discovery.Service),
-		collectors:  make(map[types.NamespacedName]*collector.Pool),
-		channels:    make(map[types.NamespacedName]chan<- resource.Resource),
+		collectors:  make(map[types.NamespacedName]collector.Collector),
 	}
 }
 
-func (r *Registry) AddDiscoveryService(ctx context.Context, key types.NamespacedName, obj v1beta1.Discovery) error {
+// TODO: don't need key
+func (r *Registry) AddDiscoveryService(ctx context.Context, key types.NamespacedName, obj *v1beta1.Discovery) error {
 	r.Lock()
 	defer r.Unlock()
 
@@ -71,26 +62,15 @@ func (r *Registry) AddDiscoveryService(ctx context.Context, key types.Namespaced
 		s.Stop()
 	}
 
-	svc := discovery.NewService(obj.Namespace, obj.Name, &discovery.ServiceOpts{
-		Client:          r.client,
-		Enabled:         *obj.Spec.Enabled,
-		IntervalSeconds: *obj.Spec.IntervalSeconds,
-		Selector:        obj.Spec.Selector,
-		Prefix:          *obj.Spec.Prefix,
-		Logger:          r.logger.WithValues("discovery", key),
+	svc := discovery.NewService(obj, &discovery.ServiceOpts{
+		Cache:  r.cache,
+		Client: r.client,
+		Logger: r.logger.WithValues("discovery", key),
 	})
 
-	var sendChan chan<- resource.Resource
-
-	collectorObj, err := r.getCollector(ctx, obj.Spec)
-	if err != nil {
-		// If we haven't found a collector then it either has not been deployed, or it has been deleted.
-		// In either case, the discovery service should start up and discard data until the collector is
-		// available.
-		r.logger.Info("selected collector was not found, registering discard collector", "discovery", key)
-		sendChan = r.discard.SendChan()
-	} else {
-		collector, ok := r.collectors[namespacedName(&collectorObj)]
+	// This will be split out to setup everything in the list.
+	for _, obj := range r.getCollector(ctx, obj.Spec.Collectors) {
+		collector, ok := r.collectors[namespacedName(&obj)]
 		if !ok {
 			// This would probably only happen if there is a race between
 			// the discovery service and the collector coming on line, however
@@ -98,11 +78,12 @@ func (r *Registry) AddDiscoveryService(ctx context.Context, key types.Namespaced
 			// of registering it to discard, just return an error and requeue.
 			return fmt.Errorf("collector not found in the registry")
 		}
-		sendChan = collector.SendChan()
+
+		svc.AddChan(namespacedName(&obj).String(), collector.SendChan())
 	}
 
 	r.discoveries[key] = svc
-	svc.Start(sendChan)
+	svc.Start()
 
 	return nil
 }
@@ -121,6 +102,45 @@ func (r *Registry) DeleteDiscoveryService(key types.NamespacedName) error {
 
 func (r *Registry) GetDiscoveryService(key types.NamespacedName) (o *discovery.Service, ok bool) {
 	o, ok = r.discoveries[key]
+	return
+}
+
+func (r *Registry) AddCollectionPool(ctx context.Context, key types.NamespacedName, obj v1beta1.Collector) error {
+	r.Lock()
+	defer r.Unlock()
+
+	// Check to see if we already have a collector for this key and if so, stop it.
+	if c, ok := r.collectors[key]; ok {
+		r.logger.V(8).Info("updating existing collector")
+		c.Stop()
+	}
+
+	collector := collector.NewPool(obj.Namespace, obj.Name, &collector.PoolOpts{
+		NumWorkers: *obj.Spec.Workers,
+		Logger:     r.logger.WithValues("collector", key),
+		Metrics:    r.metrics,
+	})
+
+	r.collectors[key] = collector
+	collector.Start()
+
+	return nil
+}
+
+func (r *Registry) DeleteCollectionPool(key types.NamespacedName) error {
+	r.Lock()
+	defer r.Unlock()
+
+	if c, ok := r.collectors[key]; ok {
+		c.Stop()
+		delete(r.collectors, key)
+	}
+
+	return nil
+}
+
+func (r *Registry) GetCollectionPool(key types.NamespacedName) (o collector.Collector, ok bool) {
+	o, ok = r.collectors[key]
 	return
 }
 

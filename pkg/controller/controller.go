@@ -27,6 +27,8 @@ func New(mgr ctrl.Manager, opts *ControllerOpts) *Controller {
 		logger:  opts.Logger,
 		metrics: opts.Metrics,
 		registry: registry.New(mgr, &registry.RegistryOpts{
+			Cache:   mgr.GetCache(),
+			Client:  mgr.GetClient(),
 			Logger:  opts.Logger,
 			Metrics: opts.Metrics,
 		}),
@@ -37,6 +39,7 @@ func (c *Controller) Setup() error {
 	// Set up collector controller.
 	collectorController := &collector.Controller{
 		Client:   c.mgr.GetClient(),
+		Cache:    c.mgr.GetCache(),
 		Log:      c.mgr.GetLogger().WithValues("controller", "collector"),
 		Registry: c.registry,
 	}

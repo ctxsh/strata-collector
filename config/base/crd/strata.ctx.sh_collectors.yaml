@@ -45,33 +45,32 @@ spec:
                   properties:
                     apiVersion:
                       type: string
-                    blockOwnerDeletion:
-                      type: boolean
-                    controller:
-                      type: boolean
+                    fieldPath:
+                      type: string
                     kind:
                       type: string
                     name:
                       type: string
+                    namespace:
+                      type: string
+                    resourceVersion:
+                      type: string
                     uid:
                       type: string
-                  required:
-                  - apiVersion
-                  - kind
-                  - name
-                  - uid
                   type: object
                   x-kubernetes-map-type: atomic
                 type: array
               enabled:
                 type: boolean
+              id:
+                type: string
             required:
             - discoveryTargetRefs
             - enabled
+            - id
             type: object
         required:
         - spec
-        - status
         type: object
     served: true
     storage: true

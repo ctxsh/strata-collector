@@ -17,9 +17,15 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.enabled
-      name: Enabled
+    - jsonPath: .spec.enabled
+      name: Active
       type: boolean
+    - jsonPath: .status.ready
+      name: Ready
+      type: string
+    - jsonPath: .status.lastDiscovered
+      name: Last Discovered
+      type: string
     name: v1beta1
     schema:
       openAPIV3Schema:
@@ -33,29 +39,25 @@ spec:
           spec:
             properties:
               collector:
-                properties:
-                  matchExpressions:
-                    items:
-                      properties:
-                        key:
-                          type: string
-                        operator:
-                          type: string
-                        values:
-                          items:
-                            type: string
-                          type: array
-                      required:
-                      - key
-                      - operator
-                      type: object
-                    type: array
-                  matchLabels:
-                    additionalProperties:
+                items:
+                  properties:
+                    apiVersion:
                       type: string
-                    type: object
-                type: object
-                x-kubernetes-map-type: atomic
+                    fieldPath:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                    resourceVersion:
+                      type: string
+                    uid:
+                      type: string
+                  type: object
+                  x-kubernetes-map-type: atomic
+                type: array
               enabled:
                 type: boolean
               includeAnnotations:
@@ -102,38 +104,17 @@ spec:
             type: object
           status:
             properties:
-              collectorTargetRef:
-                properties:
-                  apiVersion:
-                    type: string
-                  blockOwnerDeletion:
-                    type: boolean
-                  controller:
-                    type: boolean
-                  kind:
-                    type: string
-                  name:
-                    type: string
-                  uid:
-                    type: string
-                required:
-                - apiVersion
-                - kind
-                - name
-                - uid
-                type: object
-                x-kubernetes-map-type: atomic
-              connected:
-                type: boolean
-              enabled:
+              active:
                 type: boolean
               lastDiscovered:
+                format: date-time
+                type: string
+              ready:
                 type: string
             required:
-            - collectorTargetRef
-            - connected
-            - enabled
+            - active
             - lastDiscovered
+            - ready
             type: object
         required:
         - spec

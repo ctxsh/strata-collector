@@ -2,31 +2,29 @@ package registry
 
 import (
 	"context"
-	"fmt"
 
 	"ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
-	"k8s.io/apimachinery/pkg/labels"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // getCollecctor returns the collector pool for a discovery service.
-func (r *Registry) getCollector(ctx context.Context, spec v1beta1.DiscoverySpec) (v1beta1.Collector, error) {
-	var list v1beta1.CollectorList
-	err := r.client.List(ctx, &list, &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(spec.Collector.MatchLabels),
-	})
-	if err != nil {
-		return v1beta1.Collector{}, err
+func (r *Registry) getCollector(ctx context.Context, refs []corev1.ObjectReference) []v1beta1.Collector {
+	collectors := make([]v1beta1.Collector, len(refs))
+
+	for i, ref := range refs {
+		var collector v1beta1.Collector
+		err := r.client.Get(ctx, types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}, &collector)
+		if err != nil {
+			r.logger.Error(err, "unable to get collector", "collector", ref)
+			continue
+		}
+
+		collectors[i] = collector
 	}
 
-	if len(list.Items) == 0 {
-		return v1beta1.Collector{}, fmt.Errorf("no collector found for discovery")
-	} else if len(list.Items) > 1 {
-		return v1beta1.Collector{}, fmt.Errorf("multiple collectors found for discovery, use additional labels to narrow the search to one")
-	}
-
-	return list.Items[0], nil
+	return collectors
 }
 
 // namespacedName creates a NamespacedName type from an object interface.

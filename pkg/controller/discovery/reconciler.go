@@ -26,17 +26,20 @@ var requeueResult reconcile.Result = ctrl.Result{
 }
 
 func (r *Reconciler) reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
+	r.log.V(8).Info("request received", "request", request)
+
 	if r.observed.discovery == nil {
+		r.log.V(8).Info("discovery service not found, deleting registry entry")
 		err := r.registry.DeleteDiscoveryService(request.NamespacedName)
 		if err != nil {
 			r.log.Error(err, "unable to delete discovery service")
-			// Need to think through the conditions here and whether we should requeue the request.
+			// TODO: Need to think through the conditions here and whether we should requeue the request.
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
 	}
 
-	err := r.registry.AddDiscoveryService(ctx, request.NamespacedName, *r.observed.discovery)
+	err := r.registry.AddDiscoveryService(ctx, request.NamespacedName, r.observed.discovery.DeepCopy())
 	if err != nil {
 		r.log.Error(err, "unable to add discovery service")
 		return requeueResult, err

@@ -1,6 +1,7 @@
 package v1beta1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -9,7 +10,7 @@ type DiscoverySpec struct {
 	// +required
 	// Collector is the label selector used to identify the collector
 	// pool that will be used for processing.
-	Collector metav1.LabelSelector `json:"collector"`
+	Collectors []corev1.ObjectReference `json:"collector"`
 	// +optional
 	// Selector is the label selector used to filter the resources
 	// used by the discovery service.  If not set, then all resources will
@@ -49,12 +50,18 @@ type DiscoverySpec struct {
 
 // DiscoveryStatus represents the status of a discovery service.
 type DiscoveryStatus struct {
-	Enabled        bool   `json:"enabled"`
-	Connected      bool   `json:"connected"`
-	LastDiscovered string `json:"lastDiscovered"`
-	// CollectorTargetRef is a reference to the collector pool that will
-	// be used for processing discovered resources.
-	CollectorTargetRef metav1.OwnerReference `json:"collectorTargetRef"`
+	// Active represents whether or not the discovery service is actively discovering
+	// resources.
+	Active bool `json:"active"`
+	// LastDiscovered is the last time that the discovery service
+	// ran and discovered resources.
+	LastDiscovered metav1.Time `json:"lastDiscovered"`
+	// Ready is the number of upstream collectors that are connected and ready
+	// to recieved the discovered resources.  It is is displayed in the format
+	// of "ready/unready" where ready is the number of collectors that are currently
+	// connected and recieving resources and unready is the number of collectors
+	// that are not connected or are disabled.
+	Ready string `json:"ready"`
 }
 
 // +genclient
@@ -62,7 +69,9 @@ type DiscoveryStatus struct {
 // +k8s:defaulter-gen=true
 // +kubebuilder:subresources:status
 // +kubebuilder:resource:scope=Namespaced,shortName=discover,singular=discovery
-// +kubebuilder:printcolumn:name="Enabled",type="boolean",JSONPath=".status.enabled"
+// +kubebuilder:printcolumn:name="Active",type="boolean",JSONPath=".spec.enabled"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready"
+// +kubebuilder:printcolumn:name="Last Discovered",type="string",JSONPath=".status.lastDiscovered"
 
 // Discovery represents a discovery service that will collect pods, services, and
 // endpoints from a k8s cluster.
@@ -120,9 +129,17 @@ type CollectorSpec struct {
 type CollectorStatus struct {
 	// Enabled represents whether the collector pool is enabled or not.
 	Enabled bool `json:"enabled"`
+	// ID is the unique identifier for the collector pool.  Initially we can use it to
+	// track the processing channels, but I think it would be beneficial to use it to
+	// potentially add to the metrics that are collected as a reference back to the
+	// pool that it was collected from.  For the most part this won't grow too large
+	// and impact cardinality, however in restart conditions the id would be reset...
+	// so it would only really be useful for short term correlations.  It's going to
+	// be a uuid represented as a string.
+	ID string `json:"id"`
 	// DiscoveryTargetRefs is a list of discovery services that use the collector
 	// pool for processing.
-	DiscoveryTargetRefs []metav1.OwnerReference `json:"discoveryTargetRefs"`
+	DiscoveryTargetRefs []corev1.ObjectReference `json:"discoveryTargetRefs"`
 }
 
 // +genclient
@@ -138,8 +155,9 @@ type CollectorStatus struct {
 type Collector struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              CollectorSpec   `json:"spec"`
-	Status            CollectorStatus `json:"status"`
+	Spec              CollectorSpec `json:"spec"`
+	// +optional
+	Status CollectorStatus `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

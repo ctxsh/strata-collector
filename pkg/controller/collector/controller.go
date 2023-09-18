@@ -6,14 +6,17 @@ import (
 	v1beta1 "ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
 	"ctx.sh/strata-collector/pkg/controller/registry"
 	"github.com/go-logr/logr"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // Controller Interface implementation
 type Controller struct {
+	Cache    cache.Cache
 	Client   client.Client
 	Log      logr.Logger
 	Mgr      ctrl.Manager

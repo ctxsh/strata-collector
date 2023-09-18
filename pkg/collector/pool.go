@@ -10,17 +10,19 @@ import (
 )
 
 type PoolOpts struct {
-	NumCollectors int64
-	Discard       bool
-	Logger        logr.Logger
-	Metrics       *strata.Metrics
+	NumWorkers int64
+	Discard    bool
+	Logger     logr.Logger
+	Metrics    *strata.Metrics
 }
 
 type Pool struct {
 	namespacedName types.NamespacedName
-	numCollectors  int64
+	numWorkers     int64
 	workers        []*Worker
 	recvChan       chan resource.Resource
+	logger         logr.Logger
+	metrics        *strata.Metrics
 
 	discard bool
 
@@ -33,18 +35,21 @@ func NewPool(namespace, name string, opts *PoolOpts) *Pool {
 			Namespace: namespace,
 			Name:      name,
 		},
-		discard:       opts.Discard,
-		numCollectors: opts.NumCollectors,
-		workers:       make([]*Worker, opts.NumCollectors),
+		discard:    opts.Discard,
+		numWorkers: opts.NumWorkers,
+		workers:    make([]*Worker, opts.NumWorkers),
+		logger:     opts.Logger,
+		metrics:    opts.Metrics,
 		// TODO: make this configurable
 		recvChan: make(chan resource.Resource, 10000),
 	}
 }
 
-// TODO: send the channel.
 func (p *Pool) Start() {
-	for i := int64(0); i < p.numCollectors; i++ {
-		p.workers[i] = NewWorker(&WorkerOpts{})
+	for i := int64(0); i < p.numWorkers; i++ {
+		p.workers[i] = NewWorker(&WorkerOpts{
+			Logger: p.logger.WithValues("worker", i),
+		})
 	}
 }
 
