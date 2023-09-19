@@ -2,7 +2,6 @@ package registry
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"ctx.sh/strata"
@@ -63,24 +62,11 @@ func (r *Registry) AddDiscoveryService(ctx context.Context, key types.Namespaced
 	}
 
 	svc := discovery.NewService(obj, &discovery.ServiceOpts{
-		Cache:  r.cache,
-		Client: r.client,
-		Logger: r.logger.WithValues("discovery", key),
+		Cache:      r.cache,
+		Client:     r.client,
+		Logger:     r.logger.WithValues("discovery", key),
+		Collectors: r.collectors,
 	})
-
-	// This will be split out to setup everything in the list.
-	for _, obj := range r.getCollector(ctx, obj.Spec.Collectors) {
-		collector, ok := r.collectors[namespacedName(&obj)]
-		if !ok {
-			// This would probably only happen if there is a race between
-			// the discovery service and the collector coming on line, however
-			// with the locks in place, I don't think that is possible. So instead
-			// of registering it to discard, just return an error and requeue.
-			return fmt.Errorf("collector not found in the registry")
-		}
-
-		svc.AddChan(namespacedName(&obj).String(), collector.SendChan())
-	}
 
 	r.discoveries[key] = svc
 	svc.Start()

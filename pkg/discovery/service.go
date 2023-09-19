@@ -2,41 +2,44 @@ package discovery
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
 	"ctx.sh/strata"
 	"ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
+	"ctx.sh/strata-collector/pkg/collector"
 	"ctx.sh/strata-collector/pkg/resource"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	typesv1 "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type ServiceOpts struct {
-	Cache   cache.Cache
-	Client  client.Client
-	Logger  logr.Logger
-	Metrics *strata.Metrics
+	Cache      cache.Cache
+	Client     client.Client
+	Logger     logr.Logger
+	Metrics    *strata.Metrics
+	Collectors map[types.NamespacedName]collector.Collector
 }
 
 type Service struct {
-	cache    cache.Cache
-	client   client.Client
-	enabled  bool
-	interval time.Duration
-	logger   logr.Logger
-	metrics  *strata.Metrics
-	obj      *v1beta1.Discovery
-	prefix   string
-	selector metav1.LabelSelector
+	cache      cache.Cache
+	client     client.Client
+	collectors map[types.NamespacedName]collector.Collector
+	enabled    bool
+	interval   time.Duration
+	logger     logr.Logger
+	metrics    *strata.Metrics
+	obj        *v1beta1.Discovery
+	prefix     string
+	process    Process
+	selector   metav1.LabelSelector
 
-	sendChans map[string]chan<- resource.Resource
+	sendChans map[types.NamespacedName]chan<- resource.Resource
 	stopChan  chan struct{}
 	stopOnce  sync.Once
 	sync.Mutex
@@ -44,25 +47,20 @@ type Service struct {
 
 func NewService(obj *v1beta1.Discovery, opts *ServiceOpts) *Service {
 	return &Service{
-		cache:     opts.Cache,
-		client:    opts.Client,
-		enabled:   *obj.Spec.Enabled,
-		interval:  time.Duration(*obj.Spec.IntervalSeconds) * time.Second,
-		logger:    opts.Logger,
-		metrics:   opts.Metrics,
-		obj:       obj,
-		prefix:    *obj.Spec.Prefix,
-		selector:  obj.Spec.Selector,
-		sendChans: make(map[string]chan<- resource.Resource),
-		stopChan:  make(chan struct{}),
+		cache:      opts.Cache,
+		client:     opts.Client,
+		collectors: opts.Collectors,
+		enabled:    *obj.Spec.Enabled,
+		interval:   time.Duration(*obj.Spec.IntervalSeconds) * time.Second,
+		logger:     opts.Logger,
+		metrics:    opts.Metrics,
+		obj:        obj,
+		prefix:     *obj.Spec.Prefix,
+		process:    NewProcess(obj.Spec.Resources),
+		selector:   obj.Spec.Selector,
+		sendChans:  make(map[types.NamespacedName]chan<- resource.Resource),
+		stopChan:   make(chan struct{}),
 	}
-}
-
-func (s *Service) AddChan(key string, ch chan<- resource.Resource) {
-	s.Lock()
-	defer s.Unlock()
-
-	s.sendChans[key] = ch
 }
 
 func (s *Service) Start() {
@@ -109,8 +107,11 @@ func (s *Service) intervalRun(ctx context.Context) {
 	// service is blocked on the channel meaning that the collector workers are not
 	// ablel to keep up.  None of which are solved by adding more discovery workers.
 	resources := s.discover(ctx)
-	s.send(resources)
-	s.updateStatus(ctx)
+	s.send(ctx, resources)
+	err := s.updateStatus(ctx, len(resources))
+	if err != nil {
+		s.logger.Error(err, "unable to update status")
+	}
 }
 
 func (s *Service) discover(ctx context.Context) []resource.Resource {
@@ -119,25 +120,33 @@ func (s *Service) discover(ctx context.Context) []resource.Resource {
 
 	resources := make([]resource.Resource, 0)
 
-	s.logger.V(8).Info("discovering pods")
-	err := s.discoverPods(ctx, &resources)
-	if err != nil {
-		s.logger.Error(err, "unable to discover pods")
+	if s.process.Pods {
+		s.logger.V(8).Info("discovering pods")
+		if err := s.discoverPods(ctx, &resources); err != nil {
+			s.logger.Error(err, "unable to discover pods")
+		}
 	}
 
-	s.logger.V(8).Info("discovering services")
-	err = s.discoverServices(ctx, &resources)
-	if err != nil {
-		s.logger.Error(err, "unable to discover services")
+	if s.process.Services {
+		s.logger.V(8).Info("discovering services")
+		if err := s.discoverServices(ctx, &resources); err != nil {
+			s.logger.Error(err, "unable to discover services")
+		}
 	}
 
 	return resources
 }
 
-func (s *Service) send(resources []resource.Resource) {
+func (s *Service) send(ctx context.Context, resources []resource.Resource) {
+	// TODO: look at some of the race conditions between getting the send channels
+	// and sending the resources.  There's a chance that the send channel may not
+	// exist because of a collector deletion, so we should probably make sure that
+	// we are checking in the finalizers for the collector and block until the the
+	// send has completed.
 	s.Lock()
 	defer s.Unlock()
 
+	s.updateSendChans(ctx)
 	for n, sendChan := range s.sendChans {
 		if sendChan == nil {
 			s.logger.V(8).Info("send channel is nil", "collector", n)
@@ -149,6 +158,34 @@ func (s *Service) send(resources []resource.Resource) {
 			sendChan <- resources[i]
 		}
 	}
+}
+
+// getSendChan finds the collectors in the cache and returns all of the send channels
+// for the collectors that are found and enabled.
+func (s *Service) updateSendChans(ctx context.Context) {
+	for _, collector := range s.obj.Spec.Collectors {
+		var obj v1beta1.Collector
+
+		nn := types.NamespacedName{
+			Namespace: collector.Namespace,
+			Name:      collector.Name,
+		}
+		err := s.cache.Get(ctx, nn, &obj)
+		if err != nil {
+			s.logger.Error(err, "failed to get collector", "collector", collector)
+			continue
+		}
+
+		if !*obj.Spec.Enabled {
+			continue
+		}
+
+		if c, ok := s.collectors[nn]; ok {
+			s.sendChans[nn] = c.SendChan()
+		}
+	}
+
+	// clean?
 }
 
 // discoverPods lists all pods that match the selector and if the scrape annotation
@@ -206,6 +243,10 @@ func (s *Service) discoverServices(ctx context.Context, res *[]resource.Resource
 		}
 
 		if svc.Spec.ClusterIP == "None" {
+			if !s.process.Endpoints {
+				return nil
+			}
+
 			s.logger.V(8).Info("headless service encountered, discovering endpoints")
 			return s.discoverEndpoints(ctx, svc, res)
 		}
@@ -228,7 +269,7 @@ func (s *Service) discoverServices(ctx context.Context, res *[]resource.Resource
 // will have all the info and can be attached to the resource.
 func (s *Service) discoverEndpoints(ctx context.Context, svc corev1.Service, res *[]resource.Resource) error {
 	var endpoints corev1.Endpoints
-	err := s.cache.Get(ctx, typesv1.NamespacedName{
+	err := s.cache.Get(ctx, types.NamespacedName{
 		Namespace: svc.GetNamespace(),
 		Name:      svc.GetName(),
 	}, &endpoints, &client.GetOptions{})
@@ -253,15 +294,28 @@ func (s *Service) discoverEndpoints(ctx context.Context, svc corev1.Service, res
 	return nil
 }
 
-func (s *Service) updateStatus(ctx context.Context) error {
-	s.logger.V(8).Info("updating discovery status")
+func (s *Service) updateStatus(ctx context.Context, count int) error {
+	s.Lock()
+	defer s.Unlock()
+
+	err := s.cache.Get(ctx, types.NamespacedName{
+		Namespace: s.obj.GetNamespace(),
+		Name:      s.obj.GetName(),
+	}, s.obj)
+	if err != nil {
+		return err
+	}
 
 	obj := s.obj.DeepCopy()
 	obj.Status = v1beta1.DiscoveryStatus{
-		Active:         s.enabled,
-		LastDiscovered: metav1.Now(),
-		Ready:          fmt.Sprintf("%d/%d", len(s.sendChans), len(s.obj.Spec.Collectors)),
+		Active:                   s.enabled,
+		LastDiscovered:           metav1.Now(),
+		ReadyCollectors:          len(s.sendChans),
+		TotalCollectors:          len(s.obj.Spec.Collectors),
+		DiscoveredResourcesCount: count,
 	}
 
-	return s.client.Update(ctx, obj)
+	s.logger.V(8).Info("updating discovery status", "status", obj.Status)
+
+	return s.client.Status().Update(ctx, obj)
 }

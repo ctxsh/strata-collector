@@ -56,10 +56,8 @@ func (r *Controller) predicates() predicate.Funcs {
 			if e.ObjectOld == nil || e.ObjectNew == nil {
 				return false
 			}
-			// Only update the object if the resource version has been modified.  This
-			// ensures that we are not trying to reconcile the object if only the status
-			// has changed.
-			return e.ObjectNew.GetResourceVersion() != e.ObjectOld.GetResourceVersion()
+			// Only update the object if the resource generation has changed.
+			return e.ObjectNew.GetGeneration() != e.ObjectOld.GetGeneration()
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
 			return true

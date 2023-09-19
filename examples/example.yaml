@@ -4,9 +4,6 @@ metadata:
   name: example
   namespace: default
 spec:
-  enabled: true
-  prefix: prometheus.io
-  intervalSeconds: 10
   # selector:
   #   matchLabels:
   #     app: example

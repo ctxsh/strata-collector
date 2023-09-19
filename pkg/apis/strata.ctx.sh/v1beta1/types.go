@@ -46,6 +46,10 @@ type DiscoverySpec struct {
 	// Prefix is the annotation prefix used to gather scrape information
 	// from discovered resources.  By default it is set to "prometheus.io".
 	Prefix *string `json:"prefix"`
+	// +optional
+	// Resources is a list of resource kinds that will be discoveralble by
+	// the discovery service.  By default all resources will be discoverable.
+	Resources []string `json:"resources"`
 }
 
 // DiscoveryStatus represents the status of a discovery service.
@@ -53,24 +57,28 @@ type DiscoveryStatus struct {
 	// Active represents whether or not the discovery service is actively discovering
 	// resources.
 	Active bool `json:"active"`
+	// DiscoveredResourcesCount is the number of resources that have been discovered
+	// by the discovery service in a single run.
+	DiscoveredResourcesCount int `json:"discoveredResourcesCount"`
 	// LastDiscovered is the last time that the discovery service
 	// ran and discovered resources.
 	LastDiscovered metav1.Time `json:"lastDiscovered"`
-	// Ready is the number of upstream collectors that are connected and ready
-	// to recieved the discovered resources.  It is is displayed in the format
-	// of "ready/unready" where ready is the number of collectors that are currently
-	// connected and recieving resources and unready is the number of collectors
-	// that are not connected or are disabled.
-	Ready string `json:"ready"`
+	// ReadyCollectors is the number of upstream collectors that are connected and ready
+	// to recieved the discovered resources.
+	ReadyCollectors int `json:"readyCollectors"`
+	// TotalCollectors is the total number of configured collectors.
+	TotalCollectors int `json:"totalCollectors"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:defaulter-gen=true
-// +kubebuilder:subresources:status
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Namespaced,shortName=discover,singular=discovery
 // +kubebuilder:printcolumn:name="Active",type="boolean",JSONPath=".spec.enabled"
-// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready"
+// +kubebuilder:printcolumn:name="Ready Collectors",type="integer",JSONPath=".status.readyCollectors"
+// +kubebuilder:printcolumn:name="Total Collectors",type="integer",JSONPath=".status.totalCollectors",priority=1
+// +kubebuilder:printcolumn:name="Discovered",type="integer",JSONPath=".status.discoveredResourcesCount",priority=1
 // +kubebuilder:printcolumn:name="Last Discovered",type="string",JSONPath=".status.lastDiscovered"
 
 // Discovery represents a discovery service that will collect pods, services, and

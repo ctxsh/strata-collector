@@ -20,9 +20,17 @@ spec:
     - jsonPath: .spec.enabled
       name: Active
       type: boolean
-    - jsonPath: .status.ready
-      name: Ready
-      type: string
+    - jsonPath: .status.readyCollectors
+      name: Ready Collectors
+      type: integer
+    - jsonPath: .status.totalCollectors
+      name: Total Collectors
+      priority: 1
+      type: integer
+    - jsonPath: .status.discoveredResourcesCount
+      name: Discovered
+      priority: 1
+      type: integer
     - jsonPath: .status.lastDiscovered
       name: Last Discovered
       type: string
@@ -75,6 +83,10 @@ spec:
                 type: integer
               prefix:
                 type: string
+              resources:
+                items:
+                  type: string
+                type: array
               selector:
                 properties:
                   matchExpressions:
@@ -106,19 +118,26 @@ spec:
             properties:
               active:
                 type: boolean
+              discoveredResourcesCount:
+                type: integer
               lastDiscovered:
                 format: date-time
                 type: string
-              ready:
-                type: string
+              readyCollectors:
+                type: integer
+              totalCollectors:
+                type: integer
             required:
             - active
+            - discoveredResourcesCount
             - lastDiscovered
-            - ready
+            - readyCollectors
+            - totalCollectors
             type: object
         required:
         - spec
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      status: {}

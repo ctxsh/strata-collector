@@ -23,10 +23,10 @@ func (o *Observer) observe(observed *Observed) error {
 	observedDiscovery := new(v1beta1.Discovery)
 	err := o.observeDiscovery(o.Request.NamespacedName, observedDiscovery)
 	if err != nil {
-		return err
+		return client.IgnoreNotFound(err)
 	}
 
-	// default everything here...
+	v1beta1.Defaulted(observedDiscovery)
 
 	observed.discovery = observedDiscovery
 	return nil
