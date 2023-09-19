@@ -24,7 +24,7 @@ func (o *Observer) observe(observed *Observed) error {
 	observedCollector := new(v1beta1.Collector)
 	err := o.observeCollector(o.Request.NamespacedName, observedCollector)
 	if err != nil {
-		return err
+		return client.IgnoreNotFound(err)
 	}
 
 	// default everything here...
