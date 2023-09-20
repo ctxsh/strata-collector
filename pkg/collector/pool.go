@@ -27,6 +27,7 @@ type Pool struct {
 	discard bool
 
 	stopOnce sync.Once
+	sync.Mutex
 }
 
 func NewPool(namespace, name string, opts *PoolOpts) *Pool {
@@ -67,3 +68,5 @@ func (p *Pool) SendChan() chan<- resource.Resource {
 func (p *Pool) NamespacedName() types.NamespacedName {
 	return p.namespacedName
 }
+
+var _ Collector = &Pool{}
