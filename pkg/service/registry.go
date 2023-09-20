@@ -1,4 +1,4 @@
-package registry
+package service
 
 import (
 	"context"
@@ -6,8 +6,6 @@ import (
 
 	"ctx.sh/strata"
 	"ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
-	"ctx.sh/strata-collector/pkg/collector"
-	"ctx.sh/strata-collector/pkg/discovery"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,35 +31,39 @@ type Registry struct {
 	client      client.Client
 	logger      logr.Logger
 	metrics     *strata.Metrics
-	discoveries map[types.NamespacedName]*discovery.Service
-	collectors  map[types.NamespacedName]collector.Collector
+	discoveries map[types.NamespacedName]*Discovery
+	collectors  map[types.NamespacedName]Collector
 
 	sync.Mutex
 }
 
-func New(mgr ctrl.Manager, opts *RegistryOpts) *Registry {
+func NewRegistry(mgr ctrl.Manager, opts *RegistryOpts) *Registry {
 	return &Registry{
 		cache:       opts.Cache,
 		client:      opts.Client,
 		logger:      opts.Logger,
 		metrics:     opts.Metrics,
-		discoveries: make(map[types.NamespacedName]*discovery.Service),
-		collectors:  make(map[types.NamespacedName]collector.Collector),
+		discoveries: make(map[types.NamespacedName]*Discovery),
+		collectors:  make(map[types.NamespacedName]Collector),
 	}
 }
 
 // TODO: don't need key
-func (r *Registry) AddDiscoveryService(ctx context.Context, key types.NamespacedName, obj *v1beta1.Discovery) error {
+func (r *Registry) AddDiscoveryService(ctx context.Context, obj *v1beta1.Discovery) error {
 	r.Lock()
 	defer r.Unlock()
 
+	key := types.NamespacedName{
+		Namespace: obj.Namespace,
+		Name:      obj.Name,
+	}
 	// Check to see if we already have a discovery service for this key and if so, stop it.
 	if s, ok := r.discoveries[key]; ok {
 		r.logger.V(8).Info("updating existing discovery service")
 		s.Stop()
 	}
 
-	svc := discovery.NewService(obj, &discovery.ServiceOpts{
+	svc := NewDiscovery(obj, &DiscoveryOpts{
 		Cache:      r.cache,
 		Client:     r.client,
 		Logger:     r.logger.WithValues("discovery", key),
@@ -86,7 +88,7 @@ func (r *Registry) DeleteDiscoveryService(key types.NamespacedName) error {
 	return nil
 }
 
-func (r *Registry) GetDiscoveryService(key types.NamespacedName) (o *discovery.Service, ok bool) {
+func (r *Registry) GetDiscoveryService(key types.NamespacedName) (o *Discovery, ok bool) {
 	o, ok = r.discoveries[key]
 	return
 }
@@ -101,7 +103,7 @@ func (r *Registry) AddCollectionPool(ctx context.Context, key types.NamespacedNa
 		c.Stop()
 	}
 
-	collector := collector.NewPool(obj.Namespace, obj.Name, &collector.PoolOpts{
+	collector := NewCollectionPool(obj.Namespace, obj.Name, &CollectionPoolOpts{
 		NumWorkers: *obj.Spec.Workers,
 		Logger:     r.logger.WithValues("collector", key),
 		Metrics:    r.metrics,
@@ -125,7 +127,7 @@ func (r *Registry) DeleteCollectionPool(key types.NamespacedName) error {
 	return nil
 }
 
-func (r *Registry) GetCollectionPool(key types.NamespacedName) (o collector.Collector, ok bool) {
+func (r *Registry) GetCollectionPool(key types.NamespacedName) (o Collector, ok bool) {
 	o, ok = r.collectors[key]
 	return
 }

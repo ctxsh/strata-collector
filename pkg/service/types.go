@@ -1,4 +1,4 @@
-package collector
+package service
 
 import "ctx.sh/strata-collector/pkg/resource"
 

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	v1beta1 "ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
-	"ctx.sh/strata-collector/pkg/controller/registry"
+	"ctx.sh/strata-collector/pkg/service"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,7 +17,7 @@ type Controller struct {
 	Client   client.Client
 	Log      logr.Logger
 	Mgr      ctrl.Manager
-	Registry *registry.Registry
+	Registry *service.Registry
 }
 
 // SetupWithManager creates a new controller for the supplied manager which

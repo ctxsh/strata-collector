@@ -1,4 +1,4 @@
-package collector
+package service
 
 import (
 	"sync"
@@ -9,17 +9,17 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-type PoolOpts struct {
+type CollectionPoolOpts struct {
 	NumWorkers int64
 	Discard    bool
 	Logger     logr.Logger
 	Metrics    *strata.Metrics
 }
 
-type Pool struct {
+type CollectionPool struct {
 	namespacedName types.NamespacedName
 	numWorkers     int64
-	workers        []*Worker
+	workers        []*CollectionWorker
 	recvChan       chan resource.Resource
 	logger         logr.Logger
 	metrics        *strata.Metrics
@@ -30,15 +30,15 @@ type Pool struct {
 	sync.Mutex
 }
 
-func NewPool(namespace, name string, opts *PoolOpts) *Pool {
-	return &Pool{
+func NewCollectionPool(namespace, name string, opts *CollectionPoolOpts) *CollectionPool {
+	return &CollectionPool{
 		namespacedName: types.NamespacedName{
 			Namespace: namespace,
 			Name:      name,
 		},
 		discard:    opts.Discard,
 		numWorkers: opts.NumWorkers,
-		workers:    make([]*Worker, opts.NumWorkers),
+		workers:    make([]*CollectionWorker, opts.NumWorkers),
 		logger:     opts.Logger,
 		metrics:    opts.Metrics,
 		// TODO: make this configurable
@@ -46,27 +46,27 @@ func NewPool(namespace, name string, opts *PoolOpts) *Pool {
 	}
 }
 
-func (p *Pool) Start() {
+func (p *CollectionPool) Start() {
 	for i := int64(0); i < p.numWorkers; i++ {
-		p.workers[i] = NewWorker(&WorkerOpts{
+		p.workers[i] = NewCollectionWorker(&CollectionWorkerOpts{
 			Logger: p.logger.WithValues("worker", i),
 		})
 		p.workers[i].Start(p.recvChan)
 	}
 }
 
-func (p *Pool) Stop() {
+func (p *CollectionPool) Stop() {
 	p.stopOnce.Do(func() {
 		close(p.recvChan)
 	})
 }
 
-func (p *Pool) SendChan() chan<- resource.Resource {
+func (p *CollectionPool) SendChan() chan<- resource.Resource {
 	return p.recvChan
 }
 
-func (p *Pool) NamespacedName() types.NamespacedName {
+func (p *CollectionPool) NamespacedName() types.NamespacedName {
 	return p.namespacedName
 }
 
-var _ Collector = &Pool{}
+var _ Collector = &CollectionPool{}

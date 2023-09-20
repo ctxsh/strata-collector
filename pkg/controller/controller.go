@@ -4,7 +4,7 @@ import (
 	"ctx.sh/strata"
 	"ctx.sh/strata-collector/pkg/controller/collector"
 	"ctx.sh/strata-collector/pkg/controller/discovery"
-	"ctx.sh/strata-collector/pkg/controller/registry"
+	"ctx.sh/strata-collector/pkg/service"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -18,7 +18,7 @@ type Controller struct {
 	mgr      ctrl.Manager
 	logger   logr.Logger
 	metrics  *strata.Metrics
-	registry *registry.Registry
+	registry *service.Registry
 }
 
 func New(mgr ctrl.Manager, opts *ControllerOpts) *Controller {
@@ -26,7 +26,7 @@ func New(mgr ctrl.Manager, opts *ControllerOpts) *Controller {
 		mgr:     mgr,
 		logger:  opts.Logger,
 		metrics: opts.Metrics,
-		registry: registry.New(mgr, &registry.RegistryOpts{
+		registry: service.NewRegistry(mgr, &service.RegistryOpts{
 			Cache:   mgr.GetCache(),
 			Client:  mgr.GetClient(),
 			Logger:  opts.Logger,

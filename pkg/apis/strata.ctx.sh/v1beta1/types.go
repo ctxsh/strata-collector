@@ -5,6 +5,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// DiscoveryResources represets the resources that will be included in
+// discovery.
+type DiscoveryResources struct {
+	// +optional
+	Pods *bool `json:"pods,omitempty"`
+	// +optional
+	Services *bool `json:"services,omitempty"`
+	// +optional
+	Endpoints *bool `json:"endpoints,omitempty"`
+}
+
 // DiscoverySpec represents the parameters for the discovery service.
 type DiscoverySpec struct {
 	// +required
@@ -47,9 +58,9 @@ type DiscoverySpec struct {
 	// from discovered resources.  By default it is set to "prometheus.io".
 	Prefix *string `json:"prefix"`
 	// +optional
-	// Resources is a list of resource kinds that will be discoveralble by
-	// the discovery service.  By default all resources will be discoverable.
-	Resources []string `json:"resources"`
+	// Resources represents whether or not a resource will be included during
+	// discovery.  By default all resources will be included.
+	Resources *DiscoveryResources `json:"resources"`
 }
 
 // DiscoveryStatus represents the status of a discovery service.

@@ -1,4 +1,4 @@
-package collector
+package service
 
 import (
 	"bufio"
@@ -13,19 +13,19 @@ import (
 	"github.com/prometheus/common/expfmt"
 )
 
-type Prometheus struct {
+type PrometheusScraper struct {
 	Url    string
 	Client http.Client
 }
 
-func NewPrometheus(client http.Client, url string) *Prometheus {
-	return &Prometheus{
+func NewPrometheusScraper(client http.Client, url string) *PrometheusScraper {
+	return &PrometheusScraper{
 		Url:    url,
 		Client: client,
 	}
 }
 
-func (p *Prometheus) Get(tags map[string]string) ([]*Metric, error) {
+func (p *PrometheusScraper) Get(tags map[string]string) ([]*Metric, error) {
 	req, _ := http.NewRequest("GET", p.Url, nil)
 	resp, err := p.Client.Do(req)
 	if err != nil {
@@ -46,7 +46,7 @@ func (p *Prometheus) Get(tags map[string]string) ([]*Metric, error) {
 	return m, nil
 }
 
-func (p *Prometheus) parse(now time.Time, buf []byte, tags map[string]string) ([]*Metric, error) {
+func (p *PrometheusScraper) parse(now time.Time, buf []byte, tags map[string]string) ([]*Metric, error) {
 	var parser expfmt.TextParser
 	var err error
 

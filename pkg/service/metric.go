@@ -1,8 +1,10 @@
-package collector
+package service
 
 import (
 	"time"
 )
+
+// TODO: move me out to a common package
 
 // ValueType represents the type of metric that has been
 // collected.

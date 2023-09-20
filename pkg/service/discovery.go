@@ -1,4 +1,4 @@
-package discovery
+package service
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 
 	"ctx.sh/strata"
 	"ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
-	"ctx.sh/strata-collector/pkg/collector"
 	"ctx.sh/strata-collector/pkg/resource"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -18,33 +17,32 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ServiceOpts struct {
+type DiscoveryOpts struct {
 	Cache      cache.Cache
 	Client     client.Client
 	Logger     logr.Logger
 	Metrics    *strata.Metrics
-	Collectors map[types.NamespacedName]collector.Collector
+	Collectors map[types.NamespacedName]Collector
 }
 
-type Service struct {
+type Discovery struct {
 	cache      cache.Cache
 	client     client.Client
-	collectors map[types.NamespacedName]collector.Collector
+	collectors map[types.NamespacedName]Collector
 	enabled    bool
 	interval   time.Duration
 	logger     logr.Logger
 	metrics    *strata.Metrics
 	obj        *v1beta1.Discovery
 	prefix     string
-	process    Process
 	selector   metav1.LabelSelector
 	stopChan   chan struct{}
 	stopOnce   sync.Once
 	sync.Mutex
 }
 
-func NewService(obj *v1beta1.Discovery, opts *ServiceOpts) *Service {
-	return &Service{
+func NewDiscovery(obj *v1beta1.Discovery, opts *DiscoveryOpts) *Discovery {
+	return &Discovery{
 		cache:      opts.Cache,
 		client:     opts.Client,
 		collectors: opts.Collectors,
@@ -54,18 +52,17 @@ func NewService(obj *v1beta1.Discovery, opts *ServiceOpts) *Service {
 		metrics:    opts.Metrics,
 		obj:        obj,
 		prefix:     *obj.Spec.Prefix,
-		process:    NewProcess(obj.Spec.Resources),
 		selector:   obj.Spec.Selector,
 		stopChan:   make(chan struct{}),
 	}
 }
 
-func (s *Service) Start() {
+func (s *Discovery) Start() {
 	// TODO: manage context better
 	go s.start(context.Background())
 }
 
-func (s *Service) Stop() {
+func (s *Discovery) Stop() {
 	s.Lock()
 	defer s.Unlock()
 
@@ -74,7 +71,7 @@ func (s *Service) Stop() {
 	})
 }
 
-func (s *Service) start(ctx context.Context) {
+func (s *Discovery) start(ctx context.Context) {
 	s.logger.Info("starting discovery service")
 	s.intervalRun(ctx)
 
@@ -91,7 +88,7 @@ func (s *Service) start(ctx context.Context) {
 	}
 }
 
-func (s *Service) intervalRun(ctx context.Context) {
+func (s *Discovery) intervalRun(ctx context.Context) {
 	// TODO: make this into a goroutine and add a mutex that represents
 	// that discovery is running.  If it is running, then don't start another
 	// discovery, but instead emit a metric to let the operator know that the
@@ -111,20 +108,22 @@ func (s *Service) intervalRun(ctx context.Context) {
 	}
 }
 
-func (s *Service) discover(ctx context.Context) []resource.Resource {
+func (s *Discovery) discover(ctx context.Context) []resource.Resource {
 	s.Lock()
 	defer s.Unlock()
 
 	resources := make([]resource.Resource, 0)
 
-	if s.process.Pods {
+	s.logger.V(8).Info("discovering resources", "spec", s.obj.Spec)
+
+	if *s.obj.Spec.Resources.Pods {
 		s.logger.V(8).Info("discovering pods")
 		if err := s.discoverPods(ctx, &resources); err != nil {
 			s.logger.Error(err, "unable to discover pods")
 		}
 	}
 
-	if s.process.Services {
+	if *s.obj.Spec.Resources.Services {
 		s.logger.V(8).Info("discovering services")
 		if err := s.discoverServices(ctx, &resources); err != nil {
 			s.logger.Error(err, "unable to discover services")
@@ -134,7 +133,7 @@ func (s *Service) discover(ctx context.Context) []resource.Resource {
 	return resources
 }
 
-func (s *Service) send(ctx context.Context, resources []resource.Resource) (int, int) {
+func (s *Discovery) send(ctx context.Context, resources []resource.Resource) (int, int) {
 	// TODO: look at some of the race conditions between getting the send channels
 	// and sending the resources.  There's a chance that the send channel may not
 	// exist because of a collector deletion, so we should probably make sure that
@@ -193,7 +192,7 @@ func (s *Service) send(ctx context.Context, resources []resource.Resource) (int,
 
 // discoverPods lists all pods that match the selector and if the scrape annotation
 // is set to true, will create the collection resource and send it to the collector.
-func (s *Service) discoverPods(ctx context.Context, res *[]resource.Resource) error {
+func (s *Discovery) discoverPods(ctx context.Context, res *[]resource.Resource) error {
 	var list corev1.PodList
 
 	// TODO: how do we handle MatchExpressions?
@@ -229,7 +228,7 @@ func (s *Service) discoverPods(ctx context.Context, res *[]resource.Resource) er
 // annotation is set to true, will create the collection resource and send it to
 // the collector.  If the service is a headless service, then it will discover
 // the endpoints and create the collection resource for each endpoint.
-func (s *Service) discoverServices(ctx context.Context, res *[]resource.Resource) error {
+func (s *Discovery) discoverServices(ctx context.Context, res *[]resource.Resource) error {
 	var list corev1.ServiceList
 	err := s.cache.List(ctx, &list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(s.selector.MatchLabels),
@@ -246,7 +245,7 @@ func (s *Service) discoverServices(ctx context.Context, res *[]resource.Resource
 		}
 
 		if svc.Spec.ClusterIP == "None" {
-			if !s.process.Endpoints {
+			if !*s.obj.Spec.Resources.Pods {
 				return nil
 			}
 
@@ -270,7 +269,7 @@ func (s *Service) discoverServices(ctx context.Context, res *[]resource.Resource
 // since that is handled by the service discovery.
 // TODO: instead of passing the service object along, create a metadata struct which
 // will have all the info and can be attached to the resource.
-func (s *Service) discoverEndpoints(ctx context.Context, svc corev1.Service, res *[]resource.Resource) error {
+func (s *Discovery) discoverEndpoints(ctx context.Context, svc corev1.Service, res *[]resource.Resource) error {
 	var endpoints corev1.Endpoints
 	err := s.cache.Get(ctx, types.NamespacedName{
 		Namespace: svc.GetNamespace(),
@@ -297,19 +296,21 @@ func (s *Service) discoverEndpoints(ctx context.Context, svc corev1.Service, res
 	return nil
 }
 
-func (s *Service) updateStatus(ctx context.Context, count int, ready int, inFlight int) error {
+func (s *Discovery) updateStatus(ctx context.Context, count int, ready int, inFlight int) error {
 	s.Lock()
 	defer s.Unlock()
 
+	// TODO: need to default the obj since we are replacing the saved object.  There's
+	// most likely a better way to do this. but it works for now.
+	var obj v1beta1.Discovery
 	err := s.cache.Get(ctx, types.NamespacedName{
 		Namespace: s.obj.GetNamespace(),
 		Name:      s.obj.GetName(),
-	}, s.obj)
+	}, &obj)
 	if err != nil {
 		return err
 	}
 
-	obj := s.obj.DeepCopy()
 	obj.Status = v1beta1.DiscoveryStatus{
 		Active:                   s.enabled,
 		LastDiscovered:           metav1.Now(),
@@ -321,5 +322,5 @@ func (s *Service) updateStatus(ctx context.Context, count int, ready int, inFlig
 
 	s.logger.V(8).Info("updating discovery status", "status", obj.Status)
 
-	return s.client.Status().Update(ctx, obj)
+	return s.client.Status().Update(ctx, &obj)
 }
