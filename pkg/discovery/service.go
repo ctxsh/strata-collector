@@ -38,10 +38,8 @@ type Service struct {
 	prefix     string
 	process    Process
 	selector   metav1.LabelSelector
-
-	sendChans map[types.NamespacedName]chan<- resource.Resource
-	stopChan  chan struct{}
-	stopOnce  sync.Once
+	stopChan   chan struct{}
+	stopOnce   sync.Once
 	sync.Mutex
 }
 
@@ -58,7 +56,6 @@ func NewService(obj *v1beta1.Discovery, opts *ServiceOpts) *Service {
 		prefix:     *obj.Spec.Prefix,
 		process:    NewProcess(obj.Spec.Resources),
 		selector:   obj.Spec.Selector,
-		sendChans:  make(map[types.NamespacedName]chan<- resource.Resource),
 		stopChan:   make(chan struct{}),
 	}
 }
@@ -107,8 +104,8 @@ func (s *Service) intervalRun(ctx context.Context) {
 	// service is blocked on the channel meaning that the collector workers are not
 	// ablel to keep up.  None of which are solved by adding more discovery workers.
 	resources := s.discover(ctx)
-	s.send(ctx, resources)
-	err := s.updateStatus(ctx, len(resources))
+	ready, inFlight := s.send(ctx, resources)
+	err := s.updateStatus(ctx, len(resources), ready, inFlight)
 	if err != nil {
 		s.logger.Error(err, "unable to update status")
 	}
@@ -137,7 +134,7 @@ func (s *Service) discover(ctx context.Context) []resource.Resource {
 	return resources
 }
 
-func (s *Service) send(ctx context.Context, resources []resource.Resource) {
+func (s *Service) send(ctx context.Context, resources []resource.Resource) (int, int) {
 	// TODO: look at some of the race conditions between getting the send channels
 	// and sending the resources.  There's a chance that the send channel may not
 	// exist because of a collector deletion, so we should probably make sure that
@@ -146,46 +143,52 @@ func (s *Service) send(ctx context.Context, resources []resource.Resource) {
 	s.Lock()
 	defer s.Unlock()
 
-	s.updateSendChans(ctx)
-	for n, sendChan := range s.sendChans {
-		if sendChan == nil {
-			s.logger.V(8).Info("send channel is nil", "collector", n)
-			continue
-		}
-		s.logger.V(8).Info("sending resources", "collector", n)
-		// TODO: make me async
-		for i := 0; i < len(resources); i++ {
-			sendChan <- resources[i]
-		}
-	}
-}
+	var ready int
+	var inFlight int
 
-// getSendChan finds the collectors in the cache and returns all of the send channels
-// for the collectors that are found and enabled.
-func (s *Service) updateSendChans(ctx context.Context) {
-	for _, collector := range s.obj.Spec.Collectors {
-		var obj v1beta1.Collector
-
+	for _, objRef := range s.obj.Spec.Collectors {
 		nn := types.NamespacedName{
-			Namespace: collector.Namespace,
-			Name:      collector.Name,
+			Namespace: objRef.Namespace,
+			Name:      objRef.Name,
 		}
-		err := s.cache.Get(ctx, nn, &obj)
+
+		// Grab the collector from the cache
+		var collector v1beta1.Collector
+		err := s.cache.Get(ctx, nn, &collector)
 		if err != nil {
-			s.logger.Error(err, "failed to get collector", "collector", collector)
+			if client.IgnoreNotFound(err) == nil {
+				s.logger.V(8).Info("collector not found", "collector", nn)
+			} else {
+				s.logger.Error(err, "error retrieving collector", "collector", nn)
+			}
 			continue
 		}
 
-		if !*obj.Spec.Enabled {
+		// If the collector is not enabled, then skip it.
+		if !*collector.Spec.Enabled {
 			continue
 		}
 
-		if c, ok := s.collectors[nn]; ok {
-			s.sendChans[nn] = c.SendChan()
+		// If the collector has not been registered, then skip it.
+		c, ok := s.collectors[nn]
+		if !ok {
+			continue
 		}
+
+		// Start the fun stuff
+		ready++
+		c.Lock()
+		for i := 0; i < len(resources); i++ {
+			sendChan := c.SendChan()
+			if sendChan != nil {
+				sendChan <- resources[i]
+			}
+		}
+		inFlight = len(c.SendChan())
+		c.Unlock()
 	}
 
-	// clean?
+	return ready, inFlight
 }
 
 // discoverPods lists all pods that match the selector and if the scrape annotation
@@ -294,7 +297,7 @@ func (s *Service) discoverEndpoints(ctx context.Context, svc corev1.Service, res
 	return nil
 }
 
-func (s *Service) updateStatus(ctx context.Context, count int) error {
+func (s *Service) updateStatus(ctx context.Context, count int, ready int, inFlight int) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -306,18 +309,11 @@ func (s *Service) updateStatus(ctx context.Context, count int) error {
 		return err
 	}
 
-	inFlight := 0
-	for _, c := range s.sendChans {
-		if c != nil {
-			inFlight = len(c)
-		}
-	}
-
 	obj := s.obj.DeepCopy()
 	obj.Status = v1beta1.DiscoveryStatus{
 		Active:                   s.enabled,
 		LastDiscovered:           metav1.Now(),
-		ReadyCollectors:          len(s.sendChans),
+		ReadyCollectors:          ready,
 		TotalCollectors:          len(s.obj.Spec.Collectors),
 		DiscoveredResourcesCount: count,
 		InFlightResources:        inFlight,

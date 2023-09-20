@@ -6,4 +6,6 @@ type Collector interface {
 	SendChan() chan<- resource.Resource
 	Start()
 	Stop()
+	Lock()
+	Unlock()
 }
