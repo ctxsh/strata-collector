@@ -68,6 +68,8 @@ type DiscoveryStatus struct {
 	ReadyCollectors int `json:"readyCollectors"`
 	// TotalCollectors is the total number of configured collectors.
 	TotalCollectors int `json:"totalCollectors"`
+	// InFlightResources is the number of resources waiting on the collectors for processing
+	InFlightResources int `json:"inFlightResources"`
 }
 
 // +genclient
@@ -75,10 +77,11 @@ type DiscoveryStatus struct {
 // +k8s:defaulter-gen=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Namespaced,shortName=discover,singular=discovery
-// +kubebuilder:printcolumn:name="Active",type="boolean",JSONPath=".spec.enabled"
+// +kubebuilder:printcolumn:name="Active",type="boolean",JSONPath=".status.active"
 // +kubebuilder:printcolumn:name="Ready Collectors",type="integer",JSONPath=".status.readyCollectors"
 // +kubebuilder:printcolumn:name="Total Collectors",type="integer",JSONPath=".status.totalCollectors",priority=1
 // +kubebuilder:printcolumn:name="Discovered",type="integer",JSONPath=".status.discoveredResourcesCount",priority=1
+// +kubebuilder:printcolumn:name="In Flight",type="integer",JSONPath=".status.inFlightResources",priority=1
 // +kubebuilder:printcolumn:name="Last Discovered",type="string",JSONPath=".status.lastDiscovered"
 
 // Discovery represents a discovery service that will collect pods, services, and

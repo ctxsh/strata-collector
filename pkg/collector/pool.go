@@ -50,6 +50,7 @@ func (p *Pool) Start() {
 		p.workers[i] = NewWorker(&WorkerOpts{
 			Logger: p.logger.WithValues("worker", i),
 		})
+		p.workers[i].Start(p.recvChan)
 	}
 }
 

@@ -17,7 +17,7 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.enabled
+    - jsonPath: .status.active
       name: Active
       type: boolean
     - jsonPath: .status.readyCollectors
@@ -29,6 +29,10 @@ spec:
       type: integer
     - jsonPath: .status.discoveredResourcesCount
       name: Discovered
+      priority: 1
+      type: integer
+    - jsonPath: .status.inFlightResources
+      name: In Flight
       priority: 1
       type: integer
     - jsonPath: .status.lastDiscovered
@@ -120,6 +124,8 @@ spec:
                 type: boolean
               discoveredResourcesCount:
                 type: integer
+              inFlightResources:
+                type: integer
               lastDiscovered:
                 format: date-time
                 type: string
@@ -130,6 +136,7 @@ spec:
             required:
             - active
             - discoveredResourcesCount
+            - inFlightResources
             - lastDiscovered
             - readyCollectors
             - totalCollectors

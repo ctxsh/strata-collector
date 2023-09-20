@@ -306,6 +306,13 @@ func (s *Service) updateStatus(ctx context.Context, count int) error {
 		return err
 	}
 
+	inFlight := 0
+	for _, c := range s.sendChans {
+		if c != nil {
+			inFlight = len(c)
+		}
+	}
+
 	obj := s.obj.DeepCopy()
 	obj.Status = v1beta1.DiscoveryStatus{
 		Active:                   s.enabled,
@@ -313,6 +320,7 @@ func (s *Service) updateStatus(ctx context.Context, count int) error {
 		ReadyCollectors:          len(s.sendChans),
 		TotalCollectors:          len(s.obj.Spec.Collectors),
 		DiscoveredResourcesCount: count,
+		InFlightResources:        inFlight,
 	}
 
 	s.logger.V(8).Info("updating discovery status", "status", obj.Status)
