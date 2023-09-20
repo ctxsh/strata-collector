@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"ctx.sh/strata-collector/pkg/controller/registry"
+	"ctx.sh/strata-collector/pkg/service"
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -17,7 +17,7 @@ type Reconciler struct {
 	log      logr.Logger
 	observed Observed
 	recorder record.EventRecorder
-	registry *registry.Registry
+	registry *service.Registry
 }
 
 var requeueResult reconcile.Result = ctrl.Result{
@@ -39,7 +39,7 @@ func (r *Reconciler) reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 		return ctrl.Result{}, nil
 	}
 
-	err := r.registry.AddDiscoveryService(ctx, request.NamespacedName, r.observed.discovery.DeepCopy())
+	err := r.registry.AddDiscoveryService(ctx, r.observed.discovery.DeepCopy())
 	if err != nil {
 		r.log.Error(err, "unable to add discovery service")
 		return requeueResult, err

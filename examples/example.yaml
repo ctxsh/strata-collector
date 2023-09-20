@@ -4,6 +4,10 @@ metadata:
   name: example
   namespace: default
 spec:
+  # resources:
+  #   pods: true
+  #   services: true
+  #   endpoints: true  
   # selector:
   #   matchLabels:
   #     app: example

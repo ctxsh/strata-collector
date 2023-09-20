@@ -3,7 +3,7 @@ package discovery
 import (
 	"context"
 
-	"ctx.sh/strata-collector/pkg/controller/registry"
+	"ctx.sh/strata-collector/pkg/service"
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -15,7 +15,7 @@ type Handler struct {
 	log      logr.Logger
 	recorder record.EventRecorder
 	observed Observed
-	registry *registry.Registry
+	registry *service.Registry
 }
 
 func (h *Handler) reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {

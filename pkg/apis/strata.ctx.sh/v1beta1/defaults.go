@@ -1,6 +1,8 @@
 package v1beta1
 
 import (
+	"fmt"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -13,29 +15,27 @@ const (
 	DefaultDiscoveryIncludeMetadata bool = false
 	// DefaultDiscoveryEnabled is the default value for enabling the discovery service.
 	DefaultDiscoveryEnabled bool = true
-)
-
-var (
-	DefaultDiscoveryResources = []string{
-		"pods",
-		"services",
-		"endpoints",
-	}
+	// DefaultDiscoveryResourcePods is the default value for including pods in discovery.
+	DefaultDiscoveryResourcePods bool = true
+	// DefaultDiscoveryResourceServices is the default value for including services in discovery.
+	DefaultDiscoveryResourceServices bool = true
+	// DefaultDiscoveryResourceEndpoints is the default value for including endpoints in discovery.
+	DefaultDiscoveryResourceEndpoints bool = true
 )
 
 // Defaulted sets the resource defaults.
 func Defaulted(obj client.Object) {
 	switch obj := obj.(type) {
 	case *Collector:
-		defautledCollector(obj)
+		defaultedCollector(obj)
 	case *Discovery:
-		defautledDiscovery(obj)
+		defaultedDiscovery(obj)
 	}
 }
 
-func defautledCollector(obj *Collector) {}
+func defaultedCollector(obj *Collector) {}
 
-func defautledDiscovery(obj *Discovery) {
+func defaultedDiscovery(obj *Discovery) {
 	if obj.Spec.Enabled == nil {
 		enabled := DefaultDiscoveryEnabled
 		obj.Spec.Enabled = &enabled
@@ -56,8 +56,29 @@ func defautledDiscovery(obj *Discovery) {
 		obj.Spec.IncludeMetadata = &includeMetadata
 	}
 
-	if obj.Spec.Resources == nil {
-		resources := DefaultDiscoveryResources
-		obj.Spec.Resources = resources
+	obj.Spec.Resources = defaultedDiscoveryResources(obj.Spec.Resources)
+	fmt.Printf("defaultedDiscoveryResources: %v", *obj.Spec.Resources)
+}
+
+func defaultedDiscoveryResources(obj *DiscoveryResources) *DiscoveryResources {
+	if obj == nil {
+		obj = &DiscoveryResources{}
 	}
+
+	if obj.Pods == nil {
+		pods := DefaultDiscoveryResourcePods
+		obj.Pods = &pods
+	}
+
+	if obj.Services == nil {
+		services := DefaultDiscoveryResourceServices
+		obj.Services = &services
+	}
+
+	if obj.Endpoints == nil {
+		endpoints := DefaultDiscoveryResourceEndpoints
+		obj.Endpoints = &endpoints
+	}
+
+	return obj
 }

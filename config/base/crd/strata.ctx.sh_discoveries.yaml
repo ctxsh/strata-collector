@@ -88,9 +88,14 @@ spec:
               prefix:
                 type: string
               resources:
-                items:
-                  type: string
-                type: array
+                properties:
+                  endpoints:
+                    type: boolean
+                  pods:
+                    type: boolean
+                  services:
+                    type: boolean
+                type: object
               selector:
                 properties:
                   matchExpressions:
