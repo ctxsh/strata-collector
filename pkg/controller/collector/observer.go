@@ -27,7 +27,7 @@ func (o *Observer) observe(observed *Observed) error {
 		return client.IgnoreNotFound(err)
 	}
 
-	// default everything here...
+	v1beta1.Defaulted(observedCollector)
 
 	observed.collector = observedCollector
 	return nil

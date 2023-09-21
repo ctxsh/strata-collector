@@ -103,10 +103,9 @@ func (r *Registry) AddCollectionPool(ctx context.Context, key types.NamespacedNa
 		c.Stop()
 	}
 
-	collector := NewCollectionPool(obj.Namespace, obj.Name, &CollectionPoolOpts{
-		NumWorkers: *obj.Spec.Workers,
-		Logger:     r.logger.WithValues("collector", key),
-		Metrics:    r.metrics,
+	collector := NewCollectionPool(obj, &CollectionPoolOpts{
+		Logger:  r.logger.WithValues("collector", key),
+		Metrics: r.metrics,
 	})
 
 	r.collectors[key] = collector
