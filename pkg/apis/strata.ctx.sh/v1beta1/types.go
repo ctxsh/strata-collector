@@ -136,6 +136,36 @@ type TLS struct {
 	InsecureSkipVerify *bool `json:"inseccureSkipVerify,omitempty"`
 }
 
+// Stdout represents the configuration for the stdout data sink.
+type Stdout struct{}
+
+// Nats represents the configuration for the nats data sink.
+type Nats struct {
+	// +optional
+	// Port is the port that the nats server is listening on.
+	Port *int32 `json:"port,omitempty"`
+	// +optional
+	// Subject is the subject that the collector will publish to.
+	Subject *string `json:"subject,omitempty"`
+	// +optional
+	// URL is the url of the nats server.
+	URL *string `json:"url,omitempty"`
+}
+
+// CollectorOutput represents the configuration for the data sink that will
+// receive the collected metrics.  Currently only supports a single output,
+// but in the future we will consider supporting multiple outputs.
+type CollectorOutput struct {
+	// +optional
+	Name *string `json:"name,omitempty"`
+	// +optional
+	// Nats is the configuration for the nats data sink.
+	Nats *Nats `json:"nats,omitempty"`
+	// +optional
+	// Stdout is the configuration for the stdout data sink.
+	Stdout *Stdout `json:"stdout,omitempty"`
+}
+
 // CollectorSpec represents the parameters for the collector service.
 type CollectorSpec struct {
 	// +optional
@@ -145,6 +175,10 @@ type CollectorSpec struct {
 	// Workers is the number of workers in the collection pool that will
 	// be used to collect metrics.
 	Workers *int64 `json:"workers"`
+	// +optional
+	// CollectorOutput is the configuration for the data sink that will
+	// receive the collected metrics.
+	Output *CollectorOutput `json:"output"`
 }
 
 // CollectorStatus represents the status of a collector pool.

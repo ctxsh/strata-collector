@@ -7,6 +7,11 @@ import (
 )
 
 const (
+	// DefraultCollectorEnabled is the default value for enabling the collector service.
+	DefaultCollectorEnabled bool = true
+	// DefaultCollectorWorkers is the default number of workers for the collector service.
+	DefaultCollectorWorkers int64 = 1
+
 	// DefaultDiscoveryPrefix is the default prefix for all resources.
 	DefaultDiscoveryPrefix string = "prometheus.io"
 	// DefaultDiscoveryIntervalSeconds is the default interval in seconds that the discovery
@@ -33,7 +38,26 @@ func Defaulted(obj client.Object) {
 	}
 }
 
-func defaultedCollector(obj *Collector) {}
+func defaultedCollector(obj *Collector) {
+	if obj.Spec.Enabled == nil {
+		enabled := DefaultCollectorEnabled
+		obj.Spec.Enabled = &enabled
+	}
+
+	if obj.Spec.Workers == nil {
+		workers := DefaultCollectorWorkers
+		obj.Spec.Workers = &workers
+	}
+
+	if obj.Spec.Output == nil {
+		name := "default"
+		output := CollectorOutput{
+			Name:   &name,
+			Stdout: &Stdout{},
+		}
+		obj.Spec.Output = &output
+	}
+}
 
 func defaultedDiscovery(obj *Discovery) {
 	if obj.Spec.Enabled == nil {

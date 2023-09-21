@@ -34,6 +34,23 @@ spec:
             properties:
               enabled:
                 type: boolean
+              output:
+                properties:
+                  name:
+                    type: string
+                  nats:
+                    properties:
+                      port:
+                        format: int32
+                        type: integer
+                      subject:
+                        type: string
+                      url:
+                        type: string
+                    type: object
+                  stdout:
+                    type: object
+                type: object
               workers:
                 format: int64
                 type: integer

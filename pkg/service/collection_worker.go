@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"ctx.sh/strata-collector/pkg/resource"
+	"ctx.sh/strata-collector/pkg/sink"
 	"github.com/go-logr/logr"
 )
 
@@ -15,10 +16,12 @@ const (
 
 type CollectionWorkerOpts struct {
 	Logger logr.Logger
+	Output sink.Sink
 }
 
 type CollectionWorker struct {
 	httpClient http.Client
+	output     sink.Sink
 	logger     logr.Logger
 }
 
@@ -28,6 +31,7 @@ func NewCollectionWorker(opt *CollectionWorkerOpts) *CollectionWorker {
 		httpClient: http.Client{
 			Timeout: DefaultTimeout,
 		},
+		output: opt.Output,
 		logger: opt.Logger,
 	}
 }
@@ -72,7 +76,11 @@ func (w *CollectionWorker) collect(r resource.Resource) ([]*Metric, error) {
 
 func (w *CollectionWorker) send(metrics []*Metric) error {
 	for _, m := range metrics {
-		w.logger.V(8).Info("sending metric", "metric", m)
+		err := w.output.Send(m.Bytes())
+		if err != nil {
+			// TODO: collect errors and send them at the end.
+			return err
+		}
 	}
 	return nil
 }
