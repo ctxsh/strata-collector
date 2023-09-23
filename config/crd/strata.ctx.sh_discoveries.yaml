@@ -36,8 +36,8 @@ spec:
       priority: 1
       type: integer
     - jsonPath: .status.lastDiscovered
-      name: Last Discovered
-      type: string
+      name: Last
+      type: date
     name: v1beta1
     schema:
       openAPIV3Schema:
