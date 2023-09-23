@@ -26,6 +26,8 @@ func NewPrometheusScraper(client http.Client, url string) *PrometheusScraper {
 }
 
 func (p *PrometheusScraper) Get(tags map[string]string) ([]*Metric, error) {
+	// TODO: Add timeout, scheme, and other options - this is just a quick
+	// implementation to get things working.
 	req, _ := http.NewRequest("GET", p.Url, nil)
 	resp, err := p.Client.Do(req)
 	if err != nil {

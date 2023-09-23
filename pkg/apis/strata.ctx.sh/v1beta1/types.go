@@ -74,7 +74,7 @@ type DiscoveryStatus struct {
 // +kubebuilder:printcolumn:name="Total Collectors",type="integer",JSONPath=".status.totalCollectors",priority=1
 // +kubebuilder:printcolumn:name="Discovered",type="integer",JSONPath=".status.discoveredResourcesCount",priority=1
 // +kubebuilder:printcolumn:name="In Flight",type="integer",JSONPath=".status.inFlightResources",priority=1
-// +kubebuilder:printcolumn:name="Last Discovered",type="string",JSONPath=".status.lastDiscovered"
+// +kubebuilder:printcolumn:name="Last",type="date",JSONPath=".status.lastDiscovered"
 
 // Discovery represents a discovery service that will collect pods, services, and
 // endpoints from a k8s cluster.
