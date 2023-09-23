@@ -15,7 +15,7 @@ type Handler struct {
 	log      logr.Logger
 	recorder record.EventRecorder
 	observed Observed
-	registry *service.Registry
+	services *service.Manager
 }
 
 func (h *Handler) reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
@@ -37,7 +37,7 @@ func (h *Handler) reconcile(ctx context.Context, request ctrl.Request) (ctrl.Res
 		log:      h.log,
 		recorder: h.recorder,
 		observed: h.observed,
-		registry: h.registry,
+		services: h.services,
 	}
 
 	result, err := reconciler.reconcile(ctx, request)

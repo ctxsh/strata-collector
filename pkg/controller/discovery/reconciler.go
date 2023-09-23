@@ -17,7 +17,7 @@ type Reconciler struct {
 	log      logr.Logger
 	observed Observed
 	recorder record.EventRecorder
-	registry *service.Registry
+	services *service.Manager
 }
 
 var requeueResult reconcile.Result = ctrl.Result{
@@ -30,7 +30,7 @@ func (r *Reconciler) reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 
 	if r.observed.discovery == nil {
 		r.log.V(8).Info("discovery service not found, deleting registry entry")
-		err := r.registry.DeleteDiscoveryService(request.NamespacedName)
+		err := r.services.DeleteDiscoveryService(request.NamespacedName)
 		if err != nil {
 			r.log.Error(err, "unable to delete discovery service")
 			// TODO: Need to think through the conditions here and whether we should requeue the request.
@@ -39,7 +39,7 @@ func (r *Reconciler) reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 		return ctrl.Result{}, nil
 	}
 
-	err := r.registry.AddDiscoveryService(ctx, r.observed.discovery.DeepCopy())
+	err := r.services.AddDiscoveryService(ctx, r.observed.discovery.DeepCopy())
 	if err != nil {
 		r.log.Error(err, "unable to add discovery service")
 		return requeueResult, err

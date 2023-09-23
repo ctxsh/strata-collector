@@ -12,20 +12,21 @@ import (
 )
 
 type CollectionPoolOpts struct {
-	Discard bool
-	Logger  logr.Logger
-	Metrics *strata.Metrics
+	Discard  bool
+	Logger   logr.Logger
+	Metrics  *strata.Metrics
+	Registry *Registry
 }
 
 type CollectionPool struct {
 	namespacedName types.NamespacedName
 	numWorkers     int64
 	workers        []*CollectionWorker
+	registry       *Registry
 	recvChan       chan resource.Resource
 	logger         logr.Logger
 	metrics        *strata.Metrics
 	output         sink.Sink
-	discard        bool
 
 	stopOnce sync.Once
 	sync.Mutex
@@ -37,7 +38,7 @@ func NewCollectionPool(obj v1beta1.Collector, opts *CollectionPoolOpts) *Collect
 			Namespace: obj.GetNamespace(),
 			Name:      obj.GetName(),
 		},
-		discard: opts.Discard,
+		registry: opts.Registry,
 		// TODO: hmmm, how to handle this?
 		output:     FromObject(*obj.Spec.Output),
 		numWorkers: *obj.Spec.Workers,

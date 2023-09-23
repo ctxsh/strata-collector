@@ -18,42 +18,42 @@ import (
 )
 
 type DiscoveryOpts struct {
-	Cache      cache.Cache
-	Client     client.Client
-	Logger     logr.Logger
-	Metrics    *strata.Metrics
-	Collectors map[types.NamespacedName]Collector
+	Cache    cache.Cache
+	Client   client.Client
+	Logger   logr.Logger
+	Metrics  *strata.Metrics
+	Registry *Registry
 }
 
 type Discovery struct {
-	cache      cache.Cache
-	client     client.Client
-	collectors map[types.NamespacedName]Collector
-	enabled    bool
-	interval   time.Duration
-	logger     logr.Logger
-	metrics    *strata.Metrics
-	obj        *v1beta1.Discovery
-	prefix     string
-	selector   metav1.LabelSelector
-	stopChan   chan struct{}
-	stopOnce   sync.Once
+	cache    cache.Cache
+	client   client.Client
+	registry *Registry
+	enabled  bool
+	interval time.Duration
+	logger   logr.Logger
+	metrics  *strata.Metrics
+	obj      *v1beta1.Discovery
+	prefix   string
+	selector metav1.LabelSelector
+	stopChan chan struct{}
+	stopOnce sync.Once
 	sync.Mutex
 }
 
 func NewDiscovery(obj *v1beta1.Discovery, opts *DiscoveryOpts) *Discovery {
 	return &Discovery{
-		cache:      opts.Cache,
-		client:     opts.Client,
-		collectors: opts.Collectors,
-		enabled:    *obj.Spec.Enabled,
-		interval:   time.Duration(*obj.Spec.IntervalSeconds) * time.Second,
-		logger:     opts.Logger,
-		metrics:    opts.Metrics,
-		obj:        obj,
-		prefix:     *obj.Spec.Prefix,
-		selector:   obj.Spec.Selector,
-		stopChan:   make(chan struct{}),
+		cache:    opts.Cache,
+		client:   opts.Client,
+		registry: opts.Registry,
+		enabled:  *obj.Spec.Enabled,
+		interval: time.Duration(*obj.Spec.IntervalSeconds) * time.Second,
+		logger:   opts.Logger,
+		metrics:  opts.Metrics,
+		obj:      obj,
+		prefix:   *obj.Spec.Prefix,
+		selector: obj.Spec.Selector,
+		stopChan: make(chan struct{}),
 	}
 }
 
@@ -151,7 +151,9 @@ func (s *Discovery) send(ctx context.Context, resources []resource.Resource) (in
 			Name:      objRef.Name,
 		}
 
-		// Grab the collector from the cache
+		// Grab the collector from the cache - don't know if need this anymore - we can
+		// send this over to the collector and only worry about whether or not the collector
+		// is in the registry.
 		var collector v1beta1.Collector
 		err := s.cache.Get(ctx, nn, &collector)
 		if err != nil {
@@ -168,23 +170,23 @@ func (s *Discovery) send(ctx context.Context, resources []resource.Resource) (in
 			continue
 		}
 
-		// If the collector has not been registered, then skip it.
-		c, ok := s.collectors[nn]
-		if !ok {
-			continue
-		}
+		s.logger.V(8).Info("collector found, sending resources", "collector", nn)
 
 		// Start the fun stuff
 		ready++
-		c.Lock()
-		for i := 0; i < len(resources); i++ {
-			sendChan := c.SendChan()
-			if sendChan != nil {
-				sendChan <- resources[i]
-			}
+		err = s.registry.SendResources(nn, resources)
+		if err != nil {
+			continue
 		}
-		inFlight = len(c.SendChan())
-		c.Unlock()
+
+		s.logger.V(8).Info("resources sent", "collector", nn)
+
+		i, err := s.registry.GetInFlightResources(nn)
+		if err != nil {
+			continue
+		}
+
+		inFlight += i
 	}
 
 	return ready, inFlight
@@ -300,8 +302,6 @@ func (s *Discovery) updateStatus(ctx context.Context, count int, ready int, inFl
 	s.Lock()
 	defer s.Unlock()
 
-	// TODO: need to default the obj since we are replacing the saved object.  There's
-	// most likely a better way to do this. but it works for now.
 	var obj v1beta1.Discovery
 	err := s.cache.Get(ctx, types.NamespacedName{
 		Namespace: s.obj.GetNamespace(),
