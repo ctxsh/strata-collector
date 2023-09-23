@@ -75,6 +75,7 @@ type DiscoveryStatus struct {
 // +kubebuilder:printcolumn:name="Discovered",type="integer",JSONPath=".status.discoveredResourcesCount",priority=1
 // +kubebuilder:printcolumn:name="In Flight",type="integer",JSONPath=".status.inFlightResources",priority=1
 // +kubebuilder:printcolumn:name="Last",type="date",JSONPath=".status.lastDiscovered"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // Discovery represents a discovery service that will collect pods, services, and
 // endpoints from a k8s cluster.
@@ -205,6 +206,7 @@ type CollectorStatus struct {
 // +kubebuilder:resource:scope=Namespaced,shortName=cx,singular=collector
 // +kubebuilder:printcolumn:name="Enabled",type="boolean",JSONPath=".status.enabled"
 // +kubebuilder:printcolumn:name="Discoveries",type="integer",JSONPath=".status.discoveries"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // Collector represents a pool of collection workers that will collect metrics
 // from pods, services, and endpoints provided by the discovery service.  The
