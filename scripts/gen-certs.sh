@@ -19,27 +19,44 @@ openssl x509 -req \
 
 cat ca.crt | base64 | fold > cabundle.crt
 
-cat > config/overlays/dev/webhook.yaml << EOF
+cat > config/overlays/dev/mutating-webhooks.yaml << EOF
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: mutating-webhook-configuration
+  name: na
 webhooks:
-- name: mstrata.ctx.sh
+- name: mcollector.strata.ctx.sh
   clientConfig:
     caBundle: "$(awk '{printf "%s\\n", $0}' cabundle.crt)"
     service:
       name: strata-ctx-sh-webhook
       namespace: strata-collector
       port: 9443
+- name: mdiscovery.strata.ctx.sh
+  clientConfig:
+    caBundle: "$(awk '{printf "%s\\n", $0}' cabundle.crt)"
+    service:
+      name: strata-ctx-sh-webhook
+      namespace: strata-collector
+      port: 9443
+EOF
+
+cat > config/overlays/dev/validating-webhooks.yaml << EOF
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: validating-webhook-configuration
+  name: na
 webhooks:
-- name: vstrata.ctx.sh
+- name: vcollector.strata.ctx.sh
+  clientConfig:
+    caBundle: "$(awk '{printf "%s\\n", $0}' cabundle.crt)"
+    service:
+      name: strata-ctx-sh-webhook
+      namespace: strata-collector
+      port: 9443
+- name: vdiscovery.strata.ctx.sh
   clientConfig:
     caBundle: "$(awk '{printf "%s\\n", $0}' cabundle.crt)"
     service:
