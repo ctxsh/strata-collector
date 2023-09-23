@@ -23,7 +23,6 @@ type CollectionPool struct {
 	numWorkers     int64
 	workers        []*CollectionWorker
 	registry       *Registry
-	recvChan       chan resource.Resource
 	logger         logr.Logger
 	metrics        *strata.Metrics
 	output         sink.Sink
@@ -45,29 +44,25 @@ func NewCollectionPool(obj v1beta1.Collector, opts *CollectionPoolOpts) *Collect
 		workers:    make([]*CollectionWorker, *obj.Spec.Workers),
 		logger:     opts.Logger,
 		metrics:    opts.Metrics,
-		// TODO: make this configurable
-		recvChan: make(chan resource.Resource, 10000),
 	}
 }
 
-func (p *CollectionPool) Start() {
+func (p *CollectionPool) Start(ch <-chan resource.Resource) {
 	for i := int64(0); i < p.numWorkers; i++ {
 		p.workers[i] = NewCollectionWorker(&CollectionWorkerOpts{
 			Logger: p.logger.WithValues("worker", i),
 			Output: p.output,
 		})
-		p.workers[i].Start(p.recvChan)
+		p.workers[i].Start(ch)
 	}
 }
 
 func (p *CollectionPool) Stop() {
+	p.logger.V(8).Info("stopping collection pool")
 	p.stopOnce.Do(func() {
-		close(p.recvChan)
+		// Do I need this?.  Channels will now be closed by the
+		// registry.
 	})
-}
-
-func (p *CollectionPool) SendChan() chan<- resource.Resource {
-	return p.recvChan
 }
 
 func (p *CollectionPool) NamespacedName() types.NamespacedName {

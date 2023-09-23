@@ -15,6 +15,7 @@ import (
 type Registry struct {
 	discoveries map[types.NamespacedName]*Discovery
 	collectors  map[types.NamespacedName]Collector
+	channels    map[types.NamespacedName]chan resource.Resource
 
 	sync.RWMutex
 }
@@ -23,6 +24,7 @@ func NewRegistry() *Registry {
 	return &Registry{
 		discoveries: make(map[types.NamespacedName]*Discovery),
 		collectors:  make(map[types.NamespacedName]Collector),
+		channels:    make(map[types.NamespacedName]chan resource.Resource),
 	}
 }
 
@@ -38,12 +40,17 @@ func (r *Registry) AddCollectionPool(key types.NamespacedName, obj Collector) er
 	r.Lock()
 	defer r.Unlock()
 
+	if _, ok := r.channels[key]; !ok {
+		// TODO: buffer size should be configurable
+		r.channels[key] = make(chan resource.Resource, 10000)
+	}
+
 	if o, ok := r.collectors[key]; ok {
 		o.Stop()
 		delete(r.collectors, key)
 	}
 
-	obj.Start()
+	obj.Start(r.channels[key])
 	r.collectors[key] = obj
 	return nil
 }
@@ -52,13 +59,23 @@ func (r *Registry) DeleteCollectionPool(key types.NamespacedName) error {
 	r.Lock()
 	defer r.Unlock()
 
-	if c, ok := r.collectors[key]; ok {
-		c.Stop()
-		delete(r.collectors, key)
-		return nil
+	ch, ok := r.channels[key]
+	if !ok {
+		return fmt.Errorf("unable to delete, channel for collection not found for %s", key)
 	}
 
-	return fmt.Errorf("collection pool not found for %s", key)
+	close(ch)
+	delete(r.channels, key)
+
+	co, ok := r.collectors[key]
+	if !ok {
+		return fmt.Errorf("unable to delete, collection pool not found for %s", key)
+	}
+
+	co.Stop()
+	delete(r.collectors, key)
+
+	return nil
 }
 
 func (r *Registry) GetDiscoveryService(key types.NamespacedName) (o *Discovery, ok bool) {
@@ -101,15 +118,14 @@ func (r *Registry) SendResources(key types.NamespacedName, resources []resource.
 	r.RLock()
 	defer r.RUnlock()
 
-	c, ok := r.collectors[key]
+	c, ok := r.channels[key]
 	if !ok {
-		return fmt.Errorf("collection pool not found for %s", key)
+		return fmt.Errorf("channel for collection not found for %s", key)
 	}
 
 	for i := 0; i < len(resources); i++ {
-		sendChan := c.SendChan()
-		if sendChan != nil {
-			sendChan <- resources[i]
+		if c != nil {
+			c <- resources[i]
 		}
 	}
 
@@ -122,10 +138,37 @@ func (r *Registry) GetInFlightResources(key types.NamespacedName) (int, error) {
 	r.RLock()
 	defer r.RUnlock()
 
-	c, ok := r.collectors[key]
+	c, ok := r.channels[key]
 	if !ok {
 		return 0, fmt.Errorf("collection not found for %s", key)
 	}
 
-	return len(c.SendChan()), nil
+	return len(c), nil
 }
+
+// GetChannel returns the send channel for the collector.
+func (r *Registry) GetChannel(key types.NamespacedName) (chan resource.Resource, error) {
+	r.RLock()
+	defer r.RUnlock()
+
+	c, ok := r.channels[key]
+	if !ok {
+		return nil, fmt.Errorf("channel for collection not found for %s", key)
+	}
+
+	return c, nil
+}
+
+// func (r *Registry) CloseChannel(key types.NamespacedName) error {
+// 	r.Lock()
+// 	defer r.Unlock()
+
+// 	c, ok := r.channels[key]
+// 	if !ok {
+// 		return fmt.Errorf("channel for collection not found for %s", key)
+// 	}
+
+// 	close(c)
+// 	delete(r.channels, key)
+// 	return nil
+// }

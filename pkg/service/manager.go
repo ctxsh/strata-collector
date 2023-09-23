@@ -51,7 +51,6 @@ func (m *Manager) AddDiscoveryService(ctx context.Context, obj *v1beta1.Discover
 		Registry: m.registry,
 	})
 
-	m.logger.Info("adding discovery service", "discovery", key)
 	return m.registry.AddDiscoveryService(key, svc)
 }
 
