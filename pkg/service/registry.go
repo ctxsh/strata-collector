@@ -36,13 +36,12 @@ func (r *Registry) GetCollectionPool(key types.NamespacedName) (o Collector, ok 
 	return
 }
 
-func (r *Registry) AddCollectionPool(key types.NamespacedName, obj Collector) error {
+func (r *Registry) AddCollectionPool(key types.NamespacedName, obj Collector, bufferSize int64) error {
 	r.Lock()
 	defer r.Unlock()
 
 	if _, ok := r.channels[key]; !ok {
-		// TODO: buffer size should be configurable
-		r.channels[key] = make(chan resource.Resource, 10000)
+		r.channels[key] = make(chan resource.Resource, bufferSize)
 	}
 
 	if o, ok := r.collectors[key]; ok {
