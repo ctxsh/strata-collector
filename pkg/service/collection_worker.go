@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"time"
 
+	"ctx.sh/strata-collector/pkg/encoder"
+	"ctx.sh/strata-collector/pkg/output"
 	"ctx.sh/strata-collector/pkg/resource"
-	"ctx.sh/strata-collector/pkg/sink"
 	"github.com/go-logr/logr"
 )
 
@@ -15,24 +16,27 @@ const (
 )
 
 type CollectionWorkerOpts struct {
-	Logger logr.Logger
-	Output sink.Sink
+	Logger  logr.Logger
+	Output  output.Output
+	Encoder encoder.Encoder
 }
 
 type CollectionWorker struct {
 	httpClient http.Client
-	output     sink.Sink
+	output     output.Output
 	logger     logr.Logger
+	encoder    encoder.Encoder
 }
 
-func NewCollectionWorker(opt *CollectionWorkerOpts) *CollectionWorker {
+func NewCollectionWorker(opts *CollectionWorkerOpts) *CollectionWorker {
 	return &CollectionWorker{
 		// TODO: better client creation and config
 		httpClient: http.Client{
 			Timeout: DefaultTimeout,
 		},
-		output: opt.Output,
-		logger: opt.Logger,
+		encoder: opts.Encoder,
+		output:  opts.Output,
+		logger:  opts.Logger,
 	}
 }
 
@@ -77,8 +81,14 @@ func (w *CollectionWorker) collect(r resource.Resource) ([]*Metric, error) {
 func (w *CollectionWorker) send(metrics []*Metric) error {
 
 	for _, m := range metrics {
-		err := w.output.Send(m.Bytes())
+		data, err := w.encoder.Encode(m)
 		if err != nil {
+			// TODO: collect errors and send them at the end.
+			w.logger.Error(err, "failed to encode metric", "metric", m)
+			continue
+		}
+
+		if err = w.output.Send(data); err != nil {
 			// TODO: collect errors and send them at the end.
 			return err
 		}

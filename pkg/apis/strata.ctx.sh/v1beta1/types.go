@@ -139,8 +139,6 @@ type Nats struct {
 // but in the future we will consider supporting multiple outputs.
 type CollectorOutput struct {
 	// +optional
-	Name *string `json:"name,omitempty"`
-	// +optional
 	// Nats is the configuration for the nats data sink.
 	Nats *Nats `json:"nats,omitempty"`
 	// +optional
@@ -155,6 +153,11 @@ type CollectorSpec struct {
 	// resources for processing.  If not set, then the default buffer size
 	// will be used.
 	BufferSize *int64 `json:"bufferSize"`
+	// +optional
+	// Encoder is the encoding that will be used to encode the metrics
+	// that are sent to the data sink.  If not set, then the default
+	// encoding will be used.
+	Encoder *string `json:"encoder"`
 	// +optional
 	// Enabled is a flag to enable or disable the collector pool.
 	Enabled *bool `json:"enabled"`

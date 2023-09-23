@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -51,12 +50,4 @@ func (m *Metric) SetType(vtype ValueType) {
 
 func (m *Metric) AddValue(name string, value interface{}) {
 	m.Values[name] = value
-}
-
-// TODO: this will most likely be added to the encoders, however
-// at this point in time, we don't quite know what the final relationship
-// will be.
-func (m *Metric) Bytes() []byte {
-	data, _ := json.Marshal(m)
-	return data
 }

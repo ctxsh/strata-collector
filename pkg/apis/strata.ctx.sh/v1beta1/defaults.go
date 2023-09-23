@@ -15,6 +15,8 @@ const (
 	DefaultCollectorIncludeMetadata bool = false
 	// DefaultCollectorBufferSize is the default buffer size for the collector service.
 	DefaultCollectorBufferSize int64 = 10000
+	// DefaultCollectorEncoder is the default output encoder for a collector output.
+	DefaultCollectorEncoder string = "json"
 
 	// DefaultDiscoveryPrefix is the default prefix for all resources.
 	DefaultDiscoveryPrefix string = "prometheus.io"
@@ -81,12 +83,15 @@ func defaultedCollector(obj *Collector) {
 	}
 
 	if obj.Spec.Output == nil {
-		name := "default"
 		output := CollectorOutput{
-			Name:   &name,
 			Stdout: &Stdout{},
 		}
 		obj.Spec.Output = &output
+	}
+
+	if obj.Spec.Encoder == nil {
+		encoder := DefaultCollectorEncoder
+		obj.Spec.Encoder = &encoder
 	}
 }
 
