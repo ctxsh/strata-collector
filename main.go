@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"os"
 
@@ -10,17 +11,29 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+)
+
+const (
+	DefaultCertDir              string = "/etc/admission-webhook/tls"
+	DefaultEnableLeaderElection bool   = false
 )
 
 var (
 	// Temporary logger for initial setup
-	setupLog = ctrl.Log.WithName("setup")
-	scheme   = runtime.NewScheme()
+	setupLog       = ctrl.Log.WithName("setup")
+	scheme         = runtime.NewScheme()
+	certDir        string
+	leaderElection bool
 )
 
 func init() {
 	_ = v1beta1.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
+
+	flag.StringVar(&certDir, "certs", DefaultCertDir, "specify the cert directory")
+	flag.BoolVar(&leaderElection, "enable-leader-election", DefaultEnableLeaderElection, "enable leader election")
+
 }
 
 func main() {
@@ -36,12 +49,32 @@ func main() {
 
 	setupLog.Info("initializing manager")
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme: scheme,
-		// TODO: set up leader election once we have the dev cluster up
-		// and the cert generators.
+		Scheme:           scheme,
+		LeaderElection:   leaderElection,
+		LeaderElectionID: "strata-collector-lock",
+		WebhookServer: webhook.NewServer(webhook.Options{
+			CertDir: certDir,
+			Port:    9443,
+			TLSOpts: []func(*tls.Config){
+				func(config *tls.Config) {
+					config.InsecureSkipVerify = true
+				},
+			},
+		}),
 	})
+
 	if err != nil {
 		log.Error(err, "unable to initialize manager")
+		os.Exit(1)
+	}
+
+	if err = (&v1beta1.Collector{}).SetupWebhookWithManager(mgr); err != nil {
+		log.Error(err, "unable to create webhook", "webhook", "Collector")
+		os.Exit(1)
+	}
+
+	if err = (&v1beta1.Discovery{}).SetupWebhookWithManager(mgr); err != nil {
+		log.Error(err, "unable to create webhook", "webhook", "Discovery")
 		os.Exit(1)
 	}
 

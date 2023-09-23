@@ -22,7 +22,7 @@ codegen: controller-gen
 
 .PHONY: manifests
 manifests:
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) $(RBAC_OPTIONS) $(WEBHOOK_OPTIONS) paths="./pkg/..." $(OUTPUT_OPTIONS)
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) $(RBAC_OPTIONS) $(WEBHOOK_OPTIONS) paths="./pkg/..."
 
 .PHONY: generate
 generate: codegen manifests
@@ -72,7 +72,11 @@ $(KUSTOMIZE): $(LOCALBIN)
 ### Local development environment
 ###
 .PHONY: dev
-dev: kind-start kind-load install
+dev: kind-start kind-load dev-tls install
+
+:PHONY: dev-tls
+dev-tls:
+	@./scripts/gen-certs.sh
 
 .PHONY: kind-start
 kind-start:

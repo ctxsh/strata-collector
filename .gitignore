@@ -21,3 +21,7 @@ vendor/
 
 # Go workspace file
 go.work
+
+# Test certs
+config/overlays/dev/tls.*
+config/overlays/dev/webhook.yaml

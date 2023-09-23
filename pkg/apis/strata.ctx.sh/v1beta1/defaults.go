@@ -11,13 +11,13 @@ const (
 	DefaultCollectorEnabled bool = true
 	// DefaultCollectorWorkers is the default number of workers for the collector service.
 	DefaultCollectorWorkers int64 = 1
+	// DefaultCollectorIncludeMetadata is the default value for including metadata.
+	DefaultCollectorIncludeMetadata bool = false
 
 	// DefaultDiscoveryPrefix is the default prefix for all resources.
 	DefaultDiscoveryPrefix string = "prometheus.io"
 	// DefaultDiscoveryIntervalSeconds is the default interval in seconds that the discovery
 	DefaultDiscoveryIntervalSeconds int64 = 10
-	// DefaultDiscoveryIncludeMetadata is the default value for including metadata.
-	DefaultDiscoveryIncludeMetadata bool = false
 	// DefaultDiscoveryEnabled is the default value for enabling the discovery service.
 	DefaultDiscoveryEnabled bool = true
 	// DefaultDiscoveryResourcePods is the default value for including pods in discovery.
@@ -26,6 +26,15 @@ const (
 	DefaultDiscoveryResourceServices bool = true
 	// DefaultDiscoveryResourceEndpoints is the default value for including endpoints in discovery.
 	DefaultDiscoveryResourceEndpoints bool = true
+)
+
+var (
+	// DefaultCollectorIncludeAnnotations is the default value for including annotations and includes
+	// no annotations by default.
+	DefaultCollectorIncludeAnnotations []string = []string{}
+	// DefaultCollectorIncludeLabels is the default value for including labels and includes no labels
+	// by default.
+	DefaultCollectorIncludeLabels []string = []string{}
 )
 
 // Defaulted sets the resource defaults.
@@ -42,6 +51,21 @@ func defaultedCollector(obj *Collector) {
 	if obj.Spec.Enabled == nil {
 		enabled := DefaultCollectorEnabled
 		obj.Spec.Enabled = &enabled
+	}
+
+	if obj.Spec.IncludeMetadata == nil {
+		includeMetadata := DefaultCollectorIncludeMetadata
+		obj.Spec.IncludeMetadata = &includeMetadata
+	}
+
+	if obj.Spec.IncludeAnnotations == nil {
+		includeAnnotations := DefaultCollectorIncludeAnnotations
+		obj.Spec.IncludeAnnotations = includeAnnotations
+	}
+
+	if obj.Spec.IncludeLabels == nil {
+		includeLabels := DefaultCollectorIncludeLabels
+		obj.Spec.IncludeLabels = includeLabels
 	}
 
 	if obj.Spec.Workers == nil {
@@ -73,11 +97,6 @@ func defaultedDiscovery(obj *Discovery) {
 	if obj.Spec.Prefix == nil {
 		prefix := DefaultDiscoveryPrefix
 		obj.Spec.Prefix = &prefix
-	}
-
-	if obj.Spec.IncludeMetadata == nil {
-		includeMetadata := DefaultDiscoveryIncludeMetadata
-		obj.Spec.IncludeMetadata = &includeMetadata
 	}
 
 	obj.Spec.Resources = defaultedDiscoveryResources(obj.Spec.Resources)

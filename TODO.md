@@ -32,3 +32,13 @@ In general we'll try to stay away from specific vendor implementations, though I
 * [] HTTP/s sink
 * [] Statsd sink
 * [] Fluent sink
+
+
+Tommorrow:
+* SendChan to registry. Maybe break up the registry settings from the "manager" settings.  Manager would take the startup/shutdown, then everything has the registry.
+* Last modified to time.Since from the last run (for discovery).
+* Add Age to collector and discovery.
+* Flags.
+* Lay out encoders?
+* Validation either inline or in the validation hooks.
+* Start looking at testing using kubebuilder and controller-runtime as an example.
