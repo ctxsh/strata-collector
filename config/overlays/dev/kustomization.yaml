@@ -8,7 +8,20 @@ patches:
       kind: Deployment
       name: strata-collector
       namespace: strata-collector
-  # - service.yaml
+  - path: foo.yaml
+    target:
+      kind: ValidatingWebhookConfiguration
+  - path: bar.yaml
+    target:
+      kind: MutatingWebhookConfiguration
+
+secretGenerator:
+  - name: strata-ctx-sh-webhook-tls
+    namespace: strata-collector
+    files:
+      - tls.crt
+      - tls.key
+    type: kubernetes.io/tls
 
 generatorOptions:
   disableNameSuffixHash: true

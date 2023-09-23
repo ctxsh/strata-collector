@@ -12,7 +12,7 @@ spec:
     listKind: DiscoveryList
     plural: discoveries
     shortNames:
-    - discover
+    - dx
     singular: discovery
   scope: Namespaced
   versions:
@@ -71,16 +71,6 @@ spec:
                   x-kubernetes-map-type: atomic
                 type: array
               enabled:
-                type: boolean
-              includeAnnotations:
-                items:
-                  type: string
-                type: array
-              includeLabels:
-                items:
-                  type: string
-                type: array
-              includeMetadata:
                 type: boolean
               intervalSeconds:
                 format: int64

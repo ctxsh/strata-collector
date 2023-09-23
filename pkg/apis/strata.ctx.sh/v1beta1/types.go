@@ -31,25 +31,6 @@ type DiscoverySpec struct {
 	// Enabled is a flag to enable or disable the discovery worker.
 	Enabled *bool `json:"enabled"`
 	// +optional
-	// IncludeAnnotations is a list of annotations that will be added as tags
-	// to the metrics that are collected.  By default no annotations will be
-	// added.  If set, then the annotations will be added as tags.  Currently
-	// only full string matches are supported.  In the future, wildcard matches
-	// will be supported.
-	IncludeAnnotations []string `json:"includeAnnotations"`
-	// +optional
-	// IncludeLabels is a list of labels that will be added as tags to the
-	// metrics that are collected.  By default no labels will be added.  If
-	// set, then the labels will be added as tags.  Currently only full string
-	// matches are supported.  In the future, wildcard matches will be supported.
-	IncludeLabels []string `json:"includeLabels"`
-	// +optional
-	// IncludeMetadata determines whether or not the metadata for the resource
-	// will be added as tags to the metrics that are collected.  By default
-	// the metadata will not be included.  If set to true, then the namespace,
-	// resource kind, and resource version will be added as tags.
-	IncludeMetadata *bool `json:"includeMetadata"`
-	// +optional
 	// IntervalSeconds is the interval in seconds that the discovery worker
 	// rediscover resources and send them to the processing channel.
 	IntervalSeconds *int64 `json:"intervalSeconds"`
@@ -87,7 +68,7 @@ type DiscoveryStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:defaulter-gen=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Namespaced,shortName=discover,singular=discovery
+// +kubebuilder:resource:scope=Namespaced,shortName=dx,singular=discovery
 // +kubebuilder:printcolumn:name="Active",type="boolean",JSONPath=".status.active"
 // +kubebuilder:printcolumn:name="Ready Collectors",type="integer",JSONPath=".status.readyCollectors"
 // +kubebuilder:printcolumn:name="Total Collectors",type="integer",JSONPath=".status.totalCollectors",priority=1
@@ -172,6 +153,25 @@ type CollectorSpec struct {
 	// Enabled is a flag to enable or disable the collector pool.
 	Enabled *bool `json:"enabled"`
 	// +optional
+	// IncludeAnnotations is a list of annotations that will be added as tags
+	// to the metrics that are collected.  By default no annotations will be
+	// added.  If set, then the annotations will be added as tags.  Currently
+	// only full string matches are supported.  In the future, wildcard matches
+	// will be supported.
+	IncludeAnnotations []string `json:"includeAnnotations"`
+	// +optional
+	// IncludeLabels is a list of labels that will be added as tags to the
+	// metrics that are collected.  By default no labels will be added.  If
+	// set, then the labels will be added as tags.  Currently only full string
+	// matches are supported.  In the future, wildcard matches will be supported.
+	IncludeLabels []string `json:"includeLabels"`
+	// +optional
+	// IncludeMetadata determines whether or not the metadata for the resource
+	// will be added as tags to the metrics that are collected.  By default
+	// the metadata will not be included.  If set to true, then the namespace,
+	// resource kind, and resource version will be added as tags.
+	IncludeMetadata *bool `json:"includeMetadata"`
+	// +optional
 	// Workers is the number of workers in the collection pool that will
 	// be used to collect metrics.
 	Workers *int64 `json:"workers"`
@@ -195,15 +195,16 @@ type CollectorStatus struct {
 	ID string `json:"id"`
 	// DiscoveryTargetRefs is a list of discovery services that use the collector
 	// pool for processing.
-	DiscoveryTargetRefs []corev1.ObjectReference `json:"discoveryTargetRefs"`
+	Discoveries int64 `json:"discoveries,omitempty"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:defaulter-gen=true
 // +kubebuilder:subresources:status
-// +kubebuilder:resource:scope=Namespaced,shortName=coll,singular=collector
+// +kubebuilder:resource:scope=Namespaced,shortName=cx,singular=collector
 // +kubebuilder:printcolumn:name="Enabled",type="boolean",JSONPath=".status.enabled"
+// +kubebuilder:printcolumn:name="Discoveries",type="integer",JSONPath=".status.discoveries"
 
 // Collector represents a pool of collection workers that will collect metrics
 // from pods, services, and endpoints provided by the discovery service.  The

@@ -34,8 +34,13 @@ spec:
         volumeMounts:
           - name: app
             mountPath: /usr/src/app
+          - name: tls
+            mountPath: "/etc/admission-webhook/tls"
+            readOnly: true
       volumes:
         - name: app
           hostPath:
             path: /app
-  # TODO: add metrics service
+        - name: tls
+          secret:
+            secretName: strata-ctx-sh-webhook-tls

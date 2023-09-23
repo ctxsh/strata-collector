@@ -12,7 +12,7 @@ spec:
     listKind: CollectorList
     plural: collectors
     shortNames:
-    - coll
+    - cx
     singular: collector
   scope: Namespaced
   versions:
@@ -20,6 +20,9 @@ spec:
     - jsonPath: .status.enabled
       name: Enabled
       type: boolean
+    - jsonPath: .status.discoveries
+      name: Discoveries
+      type: integer
     name: v1beta1
     schema:
       openAPIV3Schema:
@@ -33,6 +36,16 @@ spec:
           spec:
             properties:
               enabled:
+                type: boolean
+              includeAnnotations:
+                items:
+                  type: string
+                type: array
+              includeLabels:
+                items:
+                  type: string
+                type: array
+              includeMetadata:
                 type: boolean
               output:
                 properties:
@@ -57,32 +70,14 @@ spec:
             type: object
           status:
             properties:
-              discoveryTargetRefs:
-                items:
-                  properties:
-                    apiVersion:
-                      type: string
-                    fieldPath:
-                      type: string
-                    kind:
-                      type: string
-                    name:
-                      type: string
-                    namespace:
-                      type: string
-                    resourceVersion:
-                      type: string
-                    uid:
-                      type: string
-                  type: object
-                  x-kubernetes-map-type: atomic
-                type: array
+              discoveries:
+                format: int64
+                type: integer
               enabled:
                 type: boolean
               id:
                 type: string
             required:
-            - discoveryTargetRefs
             - enabled
             - id
             type: object
