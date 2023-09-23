@@ -38,6 +38,9 @@ spec:
             type: object
           spec:
             properties:
+              bufferSize:
+                format: int64
+                type: integer
               enabled:
                 type: boolean
               includeAnnotations:

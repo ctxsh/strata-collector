@@ -65,7 +65,7 @@ func (m *Manager) AddCollectionPool(ctx context.Context, key types.NamespacedNam
 		Registry: m.registry,
 	})
 
-	return m.registry.AddCollectionPool(key, collector)
+	return m.registry.AddCollectionPool(key, collector, *obj.Spec.BufferSize)
 }
 
 func (m *Manager) DeleteCollectionPool(key types.NamespacedName) error {

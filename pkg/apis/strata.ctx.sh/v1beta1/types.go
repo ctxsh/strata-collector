@@ -151,6 +151,11 @@ type CollectorOutput struct {
 // CollectorSpec represents the parameters for the collector service.
 type CollectorSpec struct {
 	// +optional
+	// BufferSize is the size of the buffer that will be used to queue
+	// resources for processing.  If not set, then the default buffer size
+	// will be used.
+	BufferSize *int64 `json:"bufferSize"`
+	// +optional
 	// Enabled is a flag to enable or disable the collector pool.
 	Enabled *bool `json:"enabled"`
 	// +optional

@@ -13,6 +13,8 @@ const (
 	DefaultCollectorWorkers int64 = 1
 	// DefaultCollectorIncludeMetadata is the default value for including metadata.
 	DefaultCollectorIncludeMetadata bool = false
+	// DefaultCollectorBufferSize is the default buffer size for the collector service.
+	DefaultCollectorBufferSize int64 = 10000
 
 	// DefaultDiscoveryPrefix is the default prefix for all resources.
 	DefaultDiscoveryPrefix string = "prometheus.io"
@@ -48,6 +50,11 @@ func Defaulted(obj client.Object) {
 }
 
 func defaultedCollector(obj *Collector) {
+	if obj.Spec.BufferSize == nil {
+		bufferSize := DefaultCollectorBufferSize
+		obj.Spec.BufferSize = &bufferSize
+	}
+
 	if obj.Spec.Enabled == nil {
 		enabled := DefaultCollectorEnabled
 		obj.Spec.Enabled = &enabled

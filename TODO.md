@@ -1,6 +1,5 @@
 # TODO
 
-
 ## Current state
 * Most of the collector/discovery sync issues have been taken care of.  The discovery service checks for the collector in the cache and grabs the channel directly from the collector pool.  We could still end up having a closed channel, so we need to make sure and check.  But with this solution, if the discovery service is sending data to the collector pool, it's locked and will need to wait on any shutdown so races should be uncommon.
   * On second thought, even with the locks, could we still end up in a situation where there are metrics left in the channel after shutdown?  I don't think so since the discovery services will still be trying to lock the channel, and if our stop mechanism will wait until the channel is empty, we should be good.  However, there may be a race between removing the collector from the registry and a new collector coming online, so delete the registry from the map before stopping.
@@ -35,11 +34,11 @@ In general we'll try to stay away from specific vendor implementations, though I
 
 
 Tommorrow:
-* [x] SendChan to registry. Maybe break up the registry settings from the "manager" settings.  Manager would take the startup/shutdown, then everything has the registry.
-* [x] Last modified to time.Since from the last run (for discovery).
-* [x] Add Age to collector and discovery.
 * [] Flags.
-* [] Lay out encoders?
+* [] Implement filters.
+* [] Implement encoders.
+* [] Buffer length for collection channels.
 * [] Validation either inline or in the validation hooks.
 * [] Start looking at testing using kubebuilder and controller-runtime as an example.
 * [] Status updates outside of the normal interval runs.
+* [] License headers.
