@@ -24,4 +24,4 @@ go.work
 
 # Test certs
 config/overlays/dev/tls.*
-config/overlays/dev/webhook.yaml
+config/overlays/dev/*-webhooks.yaml
