@@ -8,10 +8,10 @@ patches:
       kind: Deployment
       name: strata-collector
       namespace: strata-collector
-  - path: foo.yaml
+  - path: validating-webhooks.yaml
     target:
       kind: ValidatingWebhookConfiguration
-  - path: bar.yaml
+  - path: mutating-webhooks.yaml
     target:
       kind: MutatingWebhookConfiguration
 
