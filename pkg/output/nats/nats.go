@@ -1,7 +1,7 @@
 package nats
 
 import (
-	"ctx.sh/strata-collector/pkg/sink"
+	"ctx.sh/strata-collector/pkg/output"
 	"github.com/nats-io/nats.go"
 )
 
@@ -10,7 +10,7 @@ type Nats struct {
 	conn    *nats.Conn
 }
 
-func New() sink.Sink {
+func New() *Nats {
 	return &Nats{}
 }
 
@@ -29,4 +29,4 @@ func (n *Nats) Close() {
 	n.conn.Close()
 }
 
-var _ sink.Sink = &Nats{}
+var _ output.Output = &Nats{}

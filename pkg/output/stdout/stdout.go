@@ -3,7 +3,7 @@ package stdout
 import (
 	"fmt"
 
-	"ctx.sh/strata-collector/pkg/sink"
+	"ctx.sh/strata-collector/pkg/output"
 )
 
 type Stdout struct {
@@ -25,4 +25,4 @@ func (s *Stdout) Send(data []byte) error {
 func (s *Stdout) Close() {
 }
 
-var _ sink.Sink = &Stdout{}
+var _ output.Output = &Stdout{}

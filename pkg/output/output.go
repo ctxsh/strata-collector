@@ -1,6 +1,6 @@
-package sink
+package output
 
-type Sink interface {
+type Output interface {
 	Connect() error
 	Send(data []byte) error
 	Close()
