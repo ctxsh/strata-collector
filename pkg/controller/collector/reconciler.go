@@ -17,7 +17,7 @@ type Reconciler struct {
 	log      logr.Logger
 	observed Observed
 	recorder record.EventRecorder
-	registry *service.Registry
+	services *service.Manager
 }
 
 var requeueResult reconcile.Result = ctrl.Result{
@@ -27,7 +27,7 @@ var requeueResult reconcile.Result = ctrl.Result{
 
 func (r *Reconciler) reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 	if r.observed.collector == nil {
-		if err := r.registry.DeleteCollectionPool(request.NamespacedName); err != nil {
+		if err := r.services.DeleteCollectionPool(request.NamespacedName); err != nil {
 			r.log.Error(err, "unable to delete collection pool")
 			return ctrl.Result{}, err
 		}
@@ -35,7 +35,7 @@ func (r *Reconciler) reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.registry.AddCollectionPool(ctx, request.NamespacedName, *r.observed.collector); err != nil {
+	if err := r.services.AddCollectionPool(ctx, request.NamespacedName, *r.observed.collector); err != nil {
 		return requeueResult, err
 	}
 

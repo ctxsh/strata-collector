@@ -75,6 +75,7 @@ func (w *CollectionWorker) collect(r resource.Resource) ([]*Metric, error) {
 }
 
 func (w *CollectionWorker) send(metrics []*Metric) error {
+
 	for _, m := range metrics {
 		err := w.output.Send(m.Bytes())
 		if err != nil {

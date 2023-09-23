@@ -1,78 +1,102 @@
 package service
 
 import (
-	"context"
+	"fmt"
 	"sync"
 
-	"ctx.sh/strata"
-	"ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
-
-	"github.com/go-logr/logr"
+	"ctx.sh/strata-collector/pkg/resource"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// RegistryOpts are the options for the registry.
-type RegistryOpts struct {
-	Cache   cache.Cache
-	Client  client.Client
-	Logger  logr.Logger
-	Metrics *strata.Metrics
-}
 
 // Registry is the discovery service and collector retistry.  It is responsible for
 // managing the relationship between discovery services and collectors.  It creates
 // and manages the discovery services and collectors.  It also manages the channels
 // that are used by the both services.
 type Registry struct {
-	cache       cache.Cache
-	client      client.Client
-	logger      logr.Logger
-	metrics     *strata.Metrics
 	discoveries map[types.NamespacedName]*Discovery
 	collectors  map[types.NamespacedName]Collector
+	channels    map[types.NamespacedName]chan resource.Resource
 
-	sync.Mutex
+	sync.RWMutex
 }
 
-func NewRegistry(mgr ctrl.Manager, opts *RegistryOpts) *Registry {
+func NewRegistry() *Registry {
 	return &Registry{
-		cache:       opts.Cache,
-		client:      opts.Client,
-		logger:      opts.Logger,
-		metrics:     opts.Metrics,
 		discoveries: make(map[types.NamespacedName]*Discovery),
 		collectors:  make(map[types.NamespacedName]Collector),
+		channels:    make(map[types.NamespacedName]chan resource.Resource),
 	}
 }
 
-// TODO: don't need key
-func (r *Registry) AddDiscoveryService(ctx context.Context, obj *v1beta1.Discovery) error {
+func (r *Registry) GetCollectionPool(key types.NamespacedName) (o Collector, ok bool) {
+	r.RLock()
+	defer r.RUnlock()
+
+	o, ok = r.collectors[key]
+	return
+}
+
+func (r *Registry) AddCollectionPool(key types.NamespacedName, obj Collector) error {
 	r.Lock()
 	defer r.Unlock()
 
-	key := types.NamespacedName{
-		Namespace: obj.Namespace,
-		Name:      obj.Name,
-	}
-	// Check to see if we already have a discovery service for this key and if so, stop it.
-	if s, ok := r.discoveries[key]; ok {
-		r.logger.V(8).Info("updating existing discovery service")
-		s.Stop()
+	if _, ok := r.channels[key]; !ok {
+		// TODO: buffer size should be configurable
+		r.channels[key] = make(chan resource.Resource, 10000)
 	}
 
-	svc := NewDiscovery(obj, &DiscoveryOpts{
-		Cache:      r.cache,
-		Client:     r.client,
-		Logger:     r.logger.WithValues("discovery", key),
-		Collectors: r.collectors,
-	})
+	if o, ok := r.collectors[key]; ok {
+		o.Stop()
+		delete(r.collectors, key)
+	}
 
-	r.discoveries[key] = svc
-	svc.Start()
+	obj.Start(r.channels[key])
+	r.collectors[key] = obj
+	return nil
+}
 
+func (r *Registry) DeleteCollectionPool(key types.NamespacedName) error {
+	r.Lock()
+	defer r.Unlock()
+
+	ch, ok := r.channels[key]
+	if !ok {
+		return fmt.Errorf("unable to delete, channel for collection not found for %s", key)
+	}
+
+	close(ch)
+	delete(r.channels, key)
+
+	co, ok := r.collectors[key]
+	if !ok {
+		return fmt.Errorf("unable to delete, collection pool not found for %s", key)
+	}
+
+	co.Stop()
+	delete(r.collectors, key)
+
+	return nil
+}
+
+func (r *Registry) GetDiscoveryService(key types.NamespacedName) (o *Discovery, ok bool) {
+	r.RLock()
+	defer r.RUnlock()
+
+	o, ok = r.discoveries[key]
+	return
+}
+
+func (r *Registry) AddDiscoveryService(key types.NamespacedName, obj *Discovery) error {
+	r.Lock()
+	defer r.Unlock()
+
+	if o, ok := r.discoveries[key]; ok {
+		o.Stop()
+		delete(r.discoveries, key)
+	}
+
+	obj.Start()
+	r.discoveries[key] = obj
 	return nil
 }
 
@@ -83,67 +107,68 @@ func (r *Registry) DeleteDiscoveryService(key types.NamespacedName) error {
 	if o, ok := r.discoveries[key]; ok {
 		o.Stop()
 		delete(r.discoveries, key)
+		return nil
+	}
+
+	return fmt.Errorf("discovery service not found for %s", key)
+}
+
+// SendResources sends the resources to the collector.
+func (r *Registry) SendResources(key types.NamespacedName, resources []resource.Resource) error {
+	r.RLock()
+	defer r.RUnlock()
+
+	c, ok := r.channels[key]
+	if !ok {
+		return fmt.Errorf("channel for collection not found for %s", key)
+	}
+
+	for i := 0; i < len(resources); i++ {
+		if c != nil {
+			c <- resources[i]
+		}
 	}
 
 	return nil
 }
 
-func (r *Registry) GetDiscoveryService(key types.NamespacedName) (o *Discovery, ok bool) {
-	o, ok = r.discoveries[key]
-	return
-}
+// GetInFlightResources returns the number of resources that are currently awaiting processing
+// in the send channel.
+func (r *Registry) GetInFlightResources(key types.NamespacedName) (int, error) {
+	r.RLock()
+	defer r.RUnlock()
 
-func (r *Registry) AddCollectionPool(ctx context.Context, key types.NamespacedName, obj v1beta1.Collector) error {
-	r.Lock()
-	defer r.Unlock()
-
-	// Check to see if we already have a collector for this key and if so, stop it.
-	if c, ok := r.collectors[key]; ok {
-		r.logger.V(8).Info("updating existing collector")
-		c.Stop()
+	c, ok := r.channels[key]
+	if !ok {
+		return 0, fmt.Errorf("collection not found for %s", key)
 	}
 
-	collector := NewCollectionPool(obj, &CollectionPoolOpts{
-		Logger:  r.logger.WithValues("collector", key),
-		Metrics: r.metrics,
-	})
-
-	r.collectors[key] = collector
-	collector.Start()
-
-	return nil
+	return len(c), nil
 }
 
-func (r *Registry) DeleteCollectionPool(key types.NamespacedName) error {
-	r.Lock()
-	defer r.Unlock()
+// GetChannel returns the send channel for the collector.
+func (r *Registry) GetChannel(key types.NamespacedName) (chan resource.Resource, error) {
+	r.RLock()
+	defer r.RUnlock()
 
-	if c, ok := r.collectors[key]; ok {
-		c.Stop()
-		delete(r.collectors, key)
+	c, ok := r.channels[key]
+	if !ok {
+		return nil, fmt.Errorf("channel for collection not found for %s", key)
 	}
 
-	return nil
+	return c, nil
 }
 
-func (r *Registry) GetCollectionPool(key types.NamespacedName) (o Collector, ok bool) {
-	o, ok = r.collectors[key]
-	return
-}
+// func (r *Registry) CloseChannel(key types.NamespacedName) error {
+// 	r.Lock()
+// 	defer r.Unlock()
 
-// TODO: Notifiers and registries.
+// 	c, ok := r.channels[key]
+// 	if !ok {
+// 		return fmt.Errorf("channel for collection not found for %s", key)
+// 	}
 
-// RegisterToCollector registers a discovery service to a collector.
-// SendChan returns the work channel for the discovery service.
-// NewProcessingChan creates and returns a new processing channel.
-// ProcessingChanFrom(types.NamespacedName) returns the processing channel for a collector.
-
-// I should keep the channel creation here.  This way it is independent of the
-// the collector.  The collector can be restarted without affecting the discovery
-// service.  Think about this a bit more since that would impact shutdown synchronization
-// as well.
-
-// Allow for a discard channel.  This would be used when a collector has been removed or
-// is not present.  Status would show that the discovery service is discarding data.
-
-// Consider moving the mangers back up here for a single place to manage processes.
+// 	close(c)
+// 	delete(r.channels, key)
+// 	return nil
+// }

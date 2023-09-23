@@ -20,7 +20,7 @@ type Controller struct {
 	Client   client.Client
 	Log      logr.Logger
 	Mgr      ctrl.Manager
-	Registry *service.Registry
+	Services *service.Manager
 }
 
 // SetupWithManager creates a new controller for the supplied manager which
@@ -43,7 +43,7 @@ func (r *Controller) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 		client:   r.Mgr.GetClient(),
 		log:      r.Log.WithValues("name", request.Name, "namespace", request.Namespace),
 		recorder: r.Mgr.GetEventRecorderFor("StrataCollector"),
-		registry: r.Registry,
+		services: r.Services,
 	}
 	return handler.reconcile(ctx, request)
 }

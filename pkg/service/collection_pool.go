@@ -12,20 +12,20 @@ import (
 )
 
 type CollectionPoolOpts struct {
-	Discard bool
-	Logger  logr.Logger
-	Metrics *strata.Metrics
+	Discard  bool
+	Logger   logr.Logger
+	Metrics  *strata.Metrics
+	Registry *Registry
 }
 
 type CollectionPool struct {
 	namespacedName types.NamespacedName
 	numWorkers     int64
 	workers        []*CollectionWorker
-	recvChan       chan resource.Resource
+	registry       *Registry
 	logger         logr.Logger
 	metrics        *strata.Metrics
 	output         sink.Sink
-	discard        bool
 
 	stopOnce sync.Once
 	sync.Mutex
@@ -37,36 +37,32 @@ func NewCollectionPool(obj v1beta1.Collector, opts *CollectionPoolOpts) *Collect
 			Namespace: obj.GetNamespace(),
 			Name:      obj.GetName(),
 		},
-		discard: opts.Discard,
+		registry: opts.Registry,
 		// TODO: hmmm, how to handle this?
 		output:     FromObject(*obj.Spec.Output),
 		numWorkers: *obj.Spec.Workers,
 		workers:    make([]*CollectionWorker, *obj.Spec.Workers),
 		logger:     opts.Logger,
 		metrics:    opts.Metrics,
-		// TODO: make this configurable
-		recvChan: make(chan resource.Resource, 10000),
 	}
 }
 
-func (p *CollectionPool) Start() {
+func (p *CollectionPool) Start(ch <-chan resource.Resource) {
 	for i := int64(0); i < p.numWorkers; i++ {
 		p.workers[i] = NewCollectionWorker(&CollectionWorkerOpts{
 			Logger: p.logger.WithValues("worker", i),
 			Output: p.output,
 		})
-		p.workers[i].Start(p.recvChan)
+		p.workers[i].Start(ch)
 	}
 }
 
 func (p *CollectionPool) Stop() {
+	p.logger.V(8).Info("stopping collection pool")
 	p.stopOnce.Do(func() {
-		close(p.recvChan)
+		// Do I need this?.  Channels will now be closed by the
+		// registry.
 	})
-}
-
-func (p *CollectionPool) SendChan() chan<- resource.Resource {
-	return p.recvChan
 }
 
 func (p *CollectionPool) NamespacedName() types.NamespacedName {

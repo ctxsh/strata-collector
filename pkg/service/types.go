@@ -3,8 +3,7 @@ package service
 import "ctx.sh/strata-collector/pkg/resource"
 
 type Collector interface {
-	SendChan() chan<- resource.Resource
-	Start()
+	Start(<-chan resource.Resource)
 	Stop()
 	Lock()
 	Unlock()

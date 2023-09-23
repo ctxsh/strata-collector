@@ -35,10 +35,11 @@ In general we'll try to stay away from specific vendor implementations, though I
 
 
 Tommorrow:
-* [] SendChan to registry. Maybe break up the registry settings from the "manager" settings.  Manager would take the startup/shutdown, then everything has the registry.
+* [x] SendChan to registry. Maybe break up the registry settings from the "manager" settings.  Manager would take the startup/shutdown, then everything has the registry.
 * [x] Last modified to time.Since from the last run (for discovery).
 * [x] Add Age to collector and discovery.
 * [] Flags.
 * [] Lay out encoders?
 * [] Validation either inline or in the validation hooks.
 * [] Start looking at testing using kubebuilder and controller-runtime as an example.
+* [] Status updates outside of the normal interval runs.
