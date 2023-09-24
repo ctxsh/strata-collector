@@ -1,4 +1,8 @@
-CRD_OPTIONS ?= "crd:maxDescLen=0,generateEmbeddedObjectMeta=true"
+# DangerousTypes are allowed since the warnings that the generator emits about language
+# variations with floats are not relevant to the CRDs that we are generating since they
+# are not designed to be consumed by other languages.  If that changes, we will need to
+# serialize the floats as strings and then convert when we run the creation factories.
+CRD_OPTIONS ?= "crd:maxDescLen=0,generateEmbeddedObjectMeta=true,allowDangerousTypes=true"
 RBAC_OPTIONS ?= "rbac:roleName=strata-role"
 WEBHOOK_OPTIONS ?= "webhook"
 OUTPUT_OPTIONS ?= "output:artifacts:config=config/base/crd"

@@ -146,6 +146,41 @@ type CollectorOutput struct {
 	Stdout *Stdout `json:"stdout,omitempty"`
 }
 
+// CollectorClipFilter represents the configuration for the clip filter.
+type CollectorClipFilter struct {
+	// +optional
+	// Max is the maximum value that will be allowed.
+	Max *float64 `json:"max,omitempty"`
+	// +optional
+	// Min is the minimum value that will be allowed.
+	Min *float64 `json:"min,omitempty"`
+	// +optional
+	// Inclusive specifies whether or not the max and min values are inclusive
+	// when evaluating.
+	Inclusive *bool `json:"inclusive,omitempty"`
+}
+
+// CollectorExcludeFilter represents the configuration for the exclude filter.
+type CollectorExcludeFilter struct {
+	// +optional
+	// Values is a list of values that will be excluded.
+	Values []float64 `json:"values,omitempty"`
+}
+
+// CollectorFilters represents the filters that will be used to filter the
+// metrics prior to sending them to the data output.
+type CollectorFilters struct {
+	// +optional
+	// +nullable
+	// Clip is a filter function that removes metric values that are outside
+	// the max and min values.
+	Clip *CollectorClipFilter `json:"clip,omitempty"`
+	// +optional
+	// +nullable
+	// Exclude is a filter function that removes metric values that listed.
+	Exclude *CollectorExcludeFilter `json:"exclude,omitempty"`
+}
+
 // CollectorSpec represents the parameters for the collector service.
 type CollectorSpec struct {
 	// +optional
@@ -188,6 +223,10 @@ type CollectorSpec struct {
 	// CollectorOutput is the configuration for the data sink that will
 	// receive the collected metrics.
 	Output *CollectorOutput `json:"output"`
+	// +optional
+	// Filters is a list of filters that will be used to filter the metrics
+	// prior to sending them to the data output.
+	Filters *CollectorFilters `json:"filters"`
 }
 
 // CollectorStatus represents the status of a collector pool.

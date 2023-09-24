@@ -2,6 +2,7 @@ package resource
 
 import (
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,6 +32,7 @@ type Resource struct {
 	Labels             Labels
 	IncludeAnnotations []string
 	Annotations        Annotations
+	Timestamp          time.Time
 }
 
 // New returns a new defaulted resource.  The scrape annotations are used initially.
@@ -122,6 +124,7 @@ func defaulted(annotations map[string]string, prefix string) *Resource {
 		IncludeMetadata:    false,
 		IncludeLabels:      make([]string, 0),
 		IncludeAnnotations: make([]string, 0),
+		Timestamp:          time.Now(),
 	}
 
 	scrapeAnnotation := fmt.Sprintf("%s/scrape", prefix)

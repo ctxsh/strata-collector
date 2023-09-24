@@ -1,4 +1,4 @@
-package service
+package metric
 
 import (
 	"time"
@@ -28,7 +28,7 @@ type Metric struct {
 	Vtype     ValueType              `json:"vtype"`
 }
 
-func NewMetric(t time.Time, name string, tags map[string]string) *Metric {
+func New(t time.Time, name string, tags map[string]string) *Metric {
 	metric := &Metric{
 		Name:      name,
 		Tags:      tags,

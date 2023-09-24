@@ -1,7 +1,7 @@
 package v1beta1
 
 import (
-	"fmt"
+	"math"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -17,6 +17,10 @@ const (
 	DefaultCollectorBufferSize int64 = 10000
 	// DefaultCollectorEncoder is the default output encoder for a collector output.
 	DefaultCollectorEncoder string = "json"
+
+	// DefaultCollectorClipFilterInclusive is the default value for the inclusive
+	// flag on the clip filter.
+	DefaultCollectorClipFilterInclusive bool = false
 
 	// DefaultDiscoveryPrefix is the default prefix for all resources.
 	DefaultDiscoveryPrefix string = "prometheus.io"
@@ -83,15 +87,56 @@ func defaultedCollector(obj *Collector) {
 	}
 
 	if obj.Spec.Output == nil {
-		output := CollectorOutput{
+		output := &CollectorOutput{
 			Stdout: &Stdout{},
 		}
-		obj.Spec.Output = &output
+		obj.Spec.Output = output
 	}
 
 	if obj.Spec.Encoder == nil {
 		encoder := DefaultCollectorEncoder
 		obj.Spec.Encoder = &encoder
+	}
+
+	if obj.Spec.Filters == nil {
+		filters := &CollectorFilters{}
+		obj.Spec.Filters = filters
+	} else {
+		defaultedCollectorFilters(obj.Spec.Filters)
+	}
+}
+
+func defaultedCollectorFilters(obj *CollectorFilters) {
+	if obj.Exclude != nil {
+		defaultedCollectorExcludeFilter(obj.Exclude)
+	}
+
+	if obj.Clip != nil {
+		defaultedCollectorClipFilter(obj.Clip)
+	}
+}
+
+func defaultedCollectorExcludeFilter(obj *CollectorExcludeFilter) {
+	if obj.Values == nil {
+		values := make([]float64, 0)
+		obj.Values = values
+	}
+}
+
+func defaultedCollectorClipFilter(obj *CollectorClipFilter) {
+	if obj.Min == nil {
+		min := math.SmallestNonzeroFloat64
+		obj.Min = &min
+	}
+
+	if obj.Max == nil {
+		max := math.MaxFloat64
+		obj.Max = &max
+	}
+
+	if obj.Inclusive == nil {
+		inclusive := DefaultCollectorClipFilterInclusive
+		obj.Inclusive = &inclusive
 	}
 }
 
@@ -112,7 +157,6 @@ func defaultedDiscovery(obj *Discovery) {
 	}
 
 	obj.Spec.Resources = defaultedDiscoveryResources(obj.Spec.Resources)
-	fmt.Printf("defaultedDiscoveryResources: %v", *obj.Spec.Resources)
 }
 
 func defaultedDiscoveryResources(obj *DiscoveryResources) *DiscoveryResources {
