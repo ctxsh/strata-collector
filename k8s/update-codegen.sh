@@ -12,7 +12,7 @@ source "${CODEGEN_PKG}/kube_codegen.sh"
 
 kube::codegen::gen_client \
   --with-watch \
-  --input-pkg-root ${REPO}/pkg \
+  --input-pkg-root ${REPO}/pkg/apis \
   --output-pkg-root ${REPO}/pkg/client \
   --output-base "$(dirname "${BASH_SOURCE[0]}")/../../.." \
   --boilerplate "${SCRIPT_ROOT}/k8s/boilerplate.go.txt"
