@@ -6,13 +6,13 @@
 * We still need to add the validation for discovery and collectors.
 
 ## Encoders
-* [] JSON metric encoder
+* [x] JSON metric encoder
 * [] Fluentbit
 * [] Statsd
 
 ## Filters
-* [] Clip
-* [] Clamp
+* [x] Clip
+* [x] Clamp
 
 ## Sinks
 
@@ -28,12 +28,14 @@ In general we'll try to stay away from specific vendor implementations, though I
 * [] Statsd sink
 * [] Fluent sink
 
+## Fixes
+* [] Because of the way service and endpoints are intertwined, if endpoint resource discovery has been configured but service has not, endpoints will never be discovered.  Need to split them up.
 
 Tommorrow:
 * [x] Need to collect the time the resource is added to the collection channel and drop if outside a certain window.
 * [] Flags.
-* [] Implement filters.
-* [] Buffer length for collection channels.
+* [x] Implement filters.
+* [x] Buffer length for collection channels.
 * [] Validation either inline or in the validation hooks.
 * [] Start looking at testing using kubebuilder and controller-runtime as an example.
 * [] Status updates outside of the normal interval runs.
