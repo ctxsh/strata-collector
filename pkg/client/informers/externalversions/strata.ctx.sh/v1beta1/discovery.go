@@ -30,59 +30,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// CollectorInformer provides access to a shared informer and lister for
-// Collectors.
-type CollectorInformer interface {
+// DiscoveryInformer provides access to a shared informer and lister for
+// Discoveries.
+type DiscoveryInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1beta1.CollectorLister
+	Lister() v1beta1.DiscoveryLister
 }
 
-type collectorInformer struct {
+type discoveryInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewCollectorInformer constructs a new informer for Collector type.
+// NewDiscoveryInformer constructs a new informer for Discovery type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewCollectorInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredCollectorInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewDiscoveryInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredDiscoveryInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredCollectorInformer constructs a new informer for Collector type.
+// NewFilteredDiscoveryInformer constructs a new informer for Discovery type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredCollectorInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredDiscoveryInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.StrataV1beta1().Collectors(namespace).List(context.TODO(), options)
+				return client.StrataV1beta1().Discoveries(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.StrataV1beta1().Collectors(namespace).Watch(context.TODO(), options)
+				return client.StrataV1beta1().Discoveries(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&stratactxshv1beta1.Collector{},
+		&stratactxshv1beta1.Discovery{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *collectorInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredCollectorInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *discoveryInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredDiscoveryInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *collectorInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&stratactxshv1beta1.Collector{}, f.defaultInformer)
+func (f *discoveryInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&stratactxshv1beta1.Discovery{}, f.defaultInformer)
 }
 
-func (f *collectorInformer) Lister() v1beta1.CollectorLister {
-	return v1beta1.NewCollectorLister(f.Informer().GetIndexer())
+func (f *discoveryInformer) Lister() v1beta1.DiscoveryLister {
+	return v1beta1.NewDiscoveryLister(f.Informer().GetIndexer())
 }
