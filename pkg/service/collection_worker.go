@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"ctx.sh/strata-collector/pkg/encoder"
+	"ctx.sh/strata-collector/pkg/filter"
+	"ctx.sh/strata-collector/pkg/metric"
 	"ctx.sh/strata-collector/pkg/output"
 	"ctx.sh/strata-collector/pkg/resource"
 	"github.com/go-logr/logr"
@@ -19,6 +21,7 @@ type CollectionWorkerOpts struct {
 	Logger  logr.Logger
 	Output  output.Output
 	Encoder encoder.Encoder
+	Filters *filter.Filter
 }
 
 type CollectionWorker struct {
@@ -26,6 +29,7 @@ type CollectionWorker struct {
 	output     output.Output
 	logger     logr.Logger
 	encoder    encoder.Encoder
+	filters    *filter.Filter
 }
 
 func NewCollectionWorker(opts *CollectionWorkerOpts) *CollectionWorker {
@@ -37,6 +41,7 @@ func NewCollectionWorker(opts *CollectionWorkerOpts) *CollectionWorker {
 		encoder: opts.Encoder,
 		output:  opts.Output,
 		logger:  opts.Logger,
+		filters: opts.Filters,
 	}
 }
 
@@ -67,7 +72,7 @@ func (w *CollectionWorker) collectAndSend(r resource.Resource) {
 	}
 }
 
-func (w *CollectionWorker) collect(r resource.Resource) ([]*Metric, error) {
+func (w *CollectionWorker) collect(r resource.Resource) ([]*metric.Metric, error) {
 	pm := NewPrometheusScraper(w.httpClient, fmt.Sprintf("%s://%s:%s%s", r.Scheme, r.IP, r.Port, r.Path))
 
 	m, err := pm.Get(map[string]string{})
@@ -78,9 +83,13 @@ func (w *CollectionWorker) collect(r resource.Resource) ([]*Metric, error) {
 	return m, nil
 }
 
-func (w *CollectionWorker) send(metrics []*Metric) error {
+func (w *CollectionWorker) send(metrics []*metric.Metric) error {
 
 	for _, m := range metrics {
+		if w.filters.Do(m) {
+			continue
+		}
+
 		data, err := w.encoder.Encode(m)
 		if err != nil {
 			// TODO: collect errors and send them at the end.

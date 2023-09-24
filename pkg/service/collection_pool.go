@@ -6,6 +6,7 @@ import (
 	"ctx.sh/strata"
 	"ctx.sh/strata-collector/pkg/apis/strata.ctx.sh/v1beta1"
 	"ctx.sh/strata-collector/pkg/encoder"
+	"ctx.sh/strata-collector/pkg/filter"
 	"ctx.sh/strata-collector/pkg/output"
 	"ctx.sh/strata-collector/pkg/resource"
 	"github.com/go-logr/logr"
@@ -23,6 +24,7 @@ type CollectionPool struct {
 	namespacedName types.NamespacedName
 	numWorkers     int64
 	encoder        encoder.Encoder
+	filters        *filter.Filter
 	workers        []*CollectionWorker
 	registry       *Registry
 	logger         logr.Logger
@@ -40,8 +42,9 @@ func NewCollectionPool(obj v1beta1.Collector, opts *CollectionPoolOpts) *Collect
 			Name:      obj.GetName(),
 		},
 		registry:   opts.Registry,
-		output:     OutputFactory(*obj.Spec.Output),
+		output:     OutputFactory(obj.Spec.Output),
 		encoder:    EncoderFactory(*obj.Spec.Encoder),
+		filters:    FilterFactory(obj.Spec.Filters),
 		numWorkers: *obj.Spec.Workers,
 		workers:    make([]*CollectionWorker, *obj.Spec.Workers),
 		logger:     opts.Logger,
@@ -55,6 +58,7 @@ func (p *CollectionPool) Start(ch <-chan resource.Resource) {
 			Logger:  p.logger.WithValues("worker", i),
 			Output:  p.output,
 			Encoder: p.encoder,
+			Filters: p.filters,
 		})
 		p.workers[i].Start(ch)
 	}

@@ -25,3 +25,7 @@ metadata:
 spec:
   enabled: true
   workers: 10
+  filters:
+    clip:
+      min: 0
+      max: 5000

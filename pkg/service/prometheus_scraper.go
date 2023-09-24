@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"ctx.sh/strata-collector/pkg/metric"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 )
@@ -25,7 +26,7 @@ func NewPrometheusScraper(client http.Client, url string) *PrometheusScraper {
 	}
 }
 
-func (p *PrometheusScraper) Get(tags map[string]string) ([]*Metric, error) {
+func (p *PrometheusScraper) Get(tags map[string]string) ([]*metric.Metric, error) {
 	// TODO: Add timeout, scheme, and other options - this is just a quick
 	// implementation to get things working.
 	req, _ := http.NewRequest("GET", p.Url, nil)
@@ -48,11 +49,11 @@ func (p *PrometheusScraper) Get(tags map[string]string) ([]*Metric, error) {
 	return m, nil
 }
 
-func (p *PrometheusScraper) parse(now time.Time, buf []byte, tags map[string]string) ([]*Metric, error) {
+func (p *PrometheusScraper) parse(now time.Time, buf []byte, tags map[string]string) ([]*metric.Metric, error) {
 	var parser expfmt.TextParser
 	var err error
 
-	var metrics []*Metric
+	var metrics []*metric.Metric
 
 	buf = bytes.TrimPrefix(buf, []byte("\n"))
 	buffer := bytes.NewBuffer(buf)
@@ -67,7 +68,7 @@ func (p *PrometheusScraper) parse(now time.Time, buf []byte, tags map[string]str
 		for _, m := range mf.Metric {
 			tags := parseLabels(m, tags)
 			tags = parseLabelPairs(tags, m.GetLabel())
-			p := NewMetric(now, name, tags)
+			p := metric.New(now, name, tags)
 
 			switch mf.GetType() {
 			// Parse summary metrics
@@ -79,26 +80,26 @@ func (p *PrometheusScraper) parse(now time.Time, buf []byte, tags map[string]str
 				}
 			// Parse histogram metrics
 			case dto.MetricType_HISTOGRAM:
-				p.SetType(Histogram)
+				p.SetType(metric.Histogram)
 				for _, b := range m.GetHistogram().Bucket {
 					p.AddValue(fmt.Sprint(b.GetUpperBound()), float64(b.GetCumulativeCount()))
 				}
 			// Parse counter metrics
 			case dto.MetricType_COUNTER:
 				if v := m.GetCounter().GetValue(); !math.IsNaN(v) {
-					p.SetType(Counter)
+					p.SetType(metric.Counter)
 					p.AddValue("counter", v)
 				}
 			// Parse gauge metrics
 			case dto.MetricType_GAUGE:
 				if v := m.GetGauge().GetValue(); !math.IsNaN(v) {
-					p.SetType(Gauge)
+					p.SetType(metric.Gauge)
 					p.AddValue("gauge", v)
 				}
 			// Parse untyped metrics
 			case dto.MetricType_UNTYPED:
 				if v := m.GetUntyped().GetValue(); !math.IsNaN(v) {
-					p.SetType(Untyped)
+					p.SetType(metric.Untyped)
 					p.AddValue("value", v)
 				}
 			default:

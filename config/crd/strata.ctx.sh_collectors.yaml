@@ -45,6 +45,27 @@ spec:
                 type: boolean
               encoder:
                 type: string
+              filters:
+                properties:
+                  clip:
+                    nullable: true
+                    properties:
+                      inclusive:
+                        type: boolean
+                      max:
+                        type: number
+                      min:
+                        type: number
+                    type: object
+                  exclude:
+                    nullable: true
+                    properties:
+                      values:
+                        items:
+                          type: number
+                        type: array
+                    type: object
+                type: object
               includeAnnotations:
                 items:
                   type: string
