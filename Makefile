@@ -28,8 +28,12 @@ codegen: controller-gen
 manifests:
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) $(RBAC_OPTIONS) $(WEBHOOK_OPTIONS) paths="./pkg/..."
 
+.PHONY: clientgen
+clientgen:
+	./k8s/update-codegen.sh
+
 .PHONY: generate
-generate: codegen manifests
+generate: codegen clientgen manifests
 
 ###
 ### Build, install, run, and clean

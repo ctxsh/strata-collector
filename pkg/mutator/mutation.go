@@ -42,7 +42,7 @@ func (mut *Mutator) Do(m *metric.Metric) {
 // 	return func(m *metric.Metric) {
 // 		var value float64
 
-// 		switch m.Vtype {
+// 		switch m.Type {
 // 		case metric.Gauge:
 // 			value = m.Values["gauge"].(float64)
 // 		case metric.Counter:
