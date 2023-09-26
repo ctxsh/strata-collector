@@ -69,6 +69,10 @@ func Defaulted(obj client.Object) {
 	}
 }
 
+func (c *Collector) Default() {
+	Defaulted(c)
+}
+
 func defaultedCollector(obj *Collector) {
 	if obj.Spec.BufferSize == nil {
 		bufferSize := DefaultCollectorBufferSize
@@ -152,6 +156,10 @@ func defaultedCollectorClipFilter(obj *CollectorClipFilter) {
 		inclusive := DefaultCollectorClipFilterInclusive
 		obj.Inclusive = &inclusive
 	}
+}
+
+func (d *Discovery) Default() {
+	Defaulted(d)
 }
 
 func defaultedDiscovery(obj *Discovery) {
