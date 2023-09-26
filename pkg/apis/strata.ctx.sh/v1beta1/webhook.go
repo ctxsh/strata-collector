@@ -17,10 +17,8 @@ package v1beta1
 // +kubebuilder:docs-gen:collapse=Apache License
 
 import (
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // +kubebuilder:docs-gen:collapse=Go imports
@@ -39,26 +37,6 @@ func (d *Discovery) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-func (d *Discovery) Default() {
-	Defaulted(d)
-}
-
-func (d *Discovery) ValidateCreate() (admission.Warnings, error) {
-	return nil, nil
-}
-
-// ValidateUpdate implements webhook. Validator so a webhook will be registered
-// for the type.
-func (d *Discovery) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	return nil, nil
-}
-
-// ValidateDelete implements webhook. Validator so a webhook will be registered
-// for the type.
-func (d *Discovery) ValidateDelete() (admission.Warnings, error) {
-	return nil, nil
-}
-
 var _ webhook.Defaulter = &Discovery{}
 
 var _ webhook.Validator = &Discovery{}
@@ -68,26 +46,6 @@ func (c *Collector) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(c).
 		Complete()
-}
-
-func (c *Collector) Default() {
-	Defaulted(c)
-}
-
-func (c *Collector) ValidateCreate() (admission.Warnings, error) {
-	return nil, nil
-}
-
-// ValidateUpdate implements webhook. Validator so a webhook will be registered
-// for the type.
-func (c *Collector) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	return nil, nil
-}
-
-// ValidateDelete implements webhook. Validator so a webhook will be registered
-// for the type.
-func (c *Collector) ValidateDelete() (admission.Warnings, error) {
-	return nil, nil
 }
 
 var _ webhook.Defaulter = &Collector{}

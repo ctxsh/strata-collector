@@ -24,7 +24,7 @@ metadata:
     sink: example
 spec:
   enabled: true
-  workers: 10
+  workers: 2
   filters:
     clip:
       min: 0
