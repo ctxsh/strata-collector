@@ -16,6 +16,7 @@ package service
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -87,9 +88,24 @@ func (w *CollectionWorker) collectAndSend(r resource.Resource) {
 }
 
 func (w *CollectionWorker) collect(r resource.Resource) ([]*metric.Metric, error) {
-	pm := NewPrometheusScraper(w.httpClient, fmt.Sprintf("%s://%s:%s%s", r.Scheme, r.IP, r.Port, r.Path))
+	// TODO: Add timeout, scheme, and other options - this is just a quick
+	// implementation to get things working.
+	url := fmt.Sprintf("%s://%s:%s%s", r.Scheme, r.IP, r.Port, r.Path)
+	req, _ := http.NewRequest("GET", url, nil)
+	resp, err := w.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
 
-	m, err := pm.Get(map[string]string{})
+	buf, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: determine tags and fields from our config and use the resource struct
+	// to actually return them.
+	m, err := metric.FromPrometheusMetric(time.Now(), buf)
 	if err != nil {
 		return nil, err
 	}

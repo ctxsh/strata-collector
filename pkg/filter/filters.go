@@ -46,13 +46,7 @@ func (f *Filter) Do(m *metric.Metric) bool {
 
 func Exclude(f ...float64) FilterFunc {
 	return func(m *metric.Metric) bool {
-		var value float64
-
-		switch m.Vtype {
-		case metric.Gauge:
-			value = m.Values["gauge"].(float64)
-		case metric.Counter:
-			value = m.Values["counter"].(float64)
+		switch m.Type {
 		case metric.Untyped:
 			return false
 		case metric.Summary:
@@ -62,9 +56,7 @@ func Exclude(f ...float64) FilterFunc {
 		}
 
 		for _, v := range f {
-			// fmt.Printf("value: %f, v: %f\n", value, v)
-			if value == v {
-				// fmt.Println("returning true")
+			if m.Value == v {
 				return true
 			}
 		}
@@ -75,13 +67,7 @@ func Exclude(f ...float64) FilterFunc {
 
 func Clip(min, max float64, inclusive bool) FilterFunc {
 	return func(m *metric.Metric) bool {
-		var value float64
-
-		switch m.Vtype {
-		case metric.Gauge:
-			value = m.Values["gauge"].(float64)
-		case metric.Counter:
-			value = m.Values["counter"].(float64)
+		switch m.Type {
 		case metric.Untyped:
 			return false
 		case metric.Summary:
@@ -90,12 +76,9 @@ func Clip(min, max float64, inclusive bool) FilterFunc {
 			return false
 		}
 
-		// fmt.Printf("value: %f, min: %f max: %f\n", value, min, max)
-		if inclusive && (value < min || value > max) {
-			// fmt.Println("matched inclusive")
+		if inclusive && (m.Value < min || m.Value > max) {
 			return true
-		} else if !inclusive && (value <= min || value >= max) {
-			// fmt.Println("matched noninclusive")
+		} else if !inclusive && (m.Value <= min || m.Value >= max) {
 			return true
 		}
 
