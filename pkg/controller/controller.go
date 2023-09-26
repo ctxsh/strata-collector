@@ -51,7 +51,6 @@ func (c *Controller) Setup() error {
 	// Set up collector controller.
 	collectorController := &collector.Controller{
 		Client:   c.mgr.GetClient(),
-		Cache:    c.mgr.GetCache(),
 		Log:      c.mgr.GetLogger().WithValues("controller", "collector"),
 		Services: c.services,
 	}

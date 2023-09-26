@@ -14,7 +14,9 @@
 
 package service
 
-import "ctx.sh/strata-collector/pkg/resource"
+import (
+	"ctx.sh/strata-collector/pkg/resource"
+)
 
 type Collector interface {
 	Start(<-chan resource.Resource)

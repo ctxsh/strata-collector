@@ -17,8 +17,8 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.active
-      name: Active
+    - jsonPath: .spec.enabled
+      name: Enabled
       type: boolean
     - jsonPath: .status.readyCollectors
       name: Ready Collectors
@@ -118,21 +118,22 @@ spec:
             type: object
           status:
             properties:
-              active:
-                type: boolean
               discoveredResourcesCount:
+                format: int64
                 type: integer
               inFlightResources:
+                format: int64
                 type: integer
               lastDiscovered:
                 format: date-time
                 type: string
               readyCollectors:
+                format: int64
                 type: integer
               totalCollectors:
+                format: int64
                 type: integer
             required:
-            - active
             - discoveredResourcesCount
             - inFlightResources
             - lastDiscovered

@@ -113,6 +113,20 @@ func (r *Registry) AddDiscoveryService(key types.NamespacedName, obj *Discovery)
 	return nil
 }
 
+func (r *Registry) RegisteredWithCollector(nn types.NamespacedName) int64 {
+	r.RLock()
+	defer r.RUnlock()
+
+	var count int64
+	for _, o := range r.discoveries {
+		if o.HasCollector(nn) {
+			count++
+		}
+	}
+
+	return count
+}
+
 func (r *Registry) DeleteDiscoveryService(key types.NamespacedName) error {
 	r.Lock()
 	defer r.Unlock()
@@ -147,7 +161,7 @@ func (r *Registry) SendResources(key types.NamespacedName, resources []resource.
 
 // GetInFlightResources returns the number of resources that are currently awaiting processing
 // in the send channel.
-func (r *Registry) GetInFlightResources(key types.NamespacedName) (int, error) {
+func (r *Registry) GetInFlightResources(key types.NamespacedName) (int64, error) {
 	r.RLock()
 	defer r.RUnlock()
 
@@ -156,7 +170,7 @@ func (r *Registry) GetInFlightResources(key types.NamespacedName) (int, error) {
 		return 0, fmt.Errorf("collection not found for %s", key)
 	}
 
-	return len(c), nil
+	return int64(len(c)), nil
 }
 
 // GetChannel returns the send channel for the collector.

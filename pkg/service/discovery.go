@@ -40,40 +40,56 @@ type DiscoveryOpts struct {
 }
 
 type Discovery struct {
-	cache    cache.Cache
-	client   client.Client
-	registry *Registry
-	enabled  bool
-	interval time.Duration
-	logger   logr.Logger
-	metrics  *strata.Metrics
-	obj      *v1beta1.Discovery
-	prefix   string
-	selector metav1.LabelSelector
-	stopChan chan struct{}
-	stopOnce sync.Once
+	name      string
+	namespace string
+	cache     cache.Cache
+	client    client.Client
+	registry  *Registry
+	enabled   bool
+	interval  time.Duration
+	logger    logr.Logger
+	metrics   *strata.Metrics
+	obj       *v1beta1.Discovery
+	prefix    string
+	selector  metav1.LabelSelector
+	stats     *DiscoveryStats
+	stopChan  chan struct{}
+	stopOnce  sync.Once
 	sync.Mutex
 }
 
 func NewDiscovery(obj *v1beta1.Discovery, opts *DiscoveryOpts) *Discovery {
 	return &Discovery{
-		cache:    opts.Cache,
-		client:   opts.Client,
-		registry: opts.Registry,
-		enabled:  *obj.Spec.Enabled,
-		interval: time.Duration(*obj.Spec.IntervalSeconds) * time.Second,
-		logger:   opts.Logger,
-		metrics:  opts.Metrics,
-		obj:      obj,
-		prefix:   *obj.Spec.Prefix,
-		selector: obj.Spec.Selector,
-		stopChan: make(chan struct{}),
+		name:      obj.GetName(),
+		namespace: obj.GetNamespace(),
+		cache:     opts.Cache,
+		client:    opts.Client,
+		registry:  opts.Registry,
+		enabled:   *obj.Spec.Enabled,
+		interval:  time.Duration(*obj.Spec.IntervalSeconds) * time.Second,
+		logger:    opts.Logger,
+		metrics:   opts.Metrics,
+		obj:       obj,
+		prefix:    *obj.Spec.Prefix,
+		selector:  obj.Spec.Selector,
+		stats:     NewDiscoveryStats(),
+		stopChan:  make(chan struct{}),
 	}
 }
 
+func (s *Discovery) HasCollector(nn types.NamespacedName) bool {
+	for _, objRef := range s.obj.Spec.Collectors {
+		if objRef.Namespace == nn.Namespace && objRef.Name == nn.Name {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Discovery) Start() {
-	// TODO: manage context better
-	go s.start(context.Background())
+	ctx := context.Background()
+	go s.start(ctx)
+	go s.status(ctx)
 }
 
 func (s *Discovery) Stop() {
@@ -83,6 +99,13 @@ func (s *Discovery) Stop() {
 	s.stopOnce.Do(func() {
 		close(s.stopChan)
 	})
+}
+
+func (d *Discovery) NamespacedName() types.NamespacedName {
+	return types.NamespacedName{
+		Namespace: d.namespace,
+		Name:      d.name,
+	}
 }
 
 func (s *Discovery) start(ctx context.Context) {
@@ -103,6 +126,7 @@ func (s *Discovery) start(ctx context.Context) {
 }
 
 func (s *Discovery) intervalRun(ctx context.Context) {
+	s.stats.Reset()
 	// TODO: make this into a goroutine and add a mutex that represents
 	// that discovery is running.  If it is running, then don't start another
 	// discovery, but instead emit a metric to let the operator know that the
@@ -115,11 +139,7 @@ func (s *Discovery) intervalRun(ctx context.Context) {
 	// service is blocked on the channel meaning that the collector workers are not
 	// ablel to keep up.  None of which are solved by adding more discovery workers.
 	resources := s.discover(ctx)
-	ready, inFlight := s.send(ctx, resources)
-	err := s.updateStatus(ctx, len(resources), ready, inFlight)
-	if err != nil {
-		s.logger.Error(err, "unable to update status")
-	}
+	s.send(ctx, resources)
 }
 
 func (s *Discovery) discover(ctx context.Context) []resource.Resource {
@@ -147,7 +167,7 @@ func (s *Discovery) discover(ctx context.Context) []resource.Resource {
 	return resources
 }
 
-func (s *Discovery) send(ctx context.Context, resources []resource.Resource) (int, int) {
+func (s *Discovery) send(ctx context.Context, resources []resource.Resource) {
 	// TODO: look at some of the race conditions between getting the send channels
 	// and sending the resources.  There's a chance that the send channel may not
 	// exist because of a collector deletion, so we should probably make sure that
@@ -156,8 +176,7 @@ func (s *Discovery) send(ctx context.Context, resources []resource.Resource) (in
 	s.Lock()
 	defer s.Unlock()
 
-	var ready int
-	var inFlight int
+	var ready, inFlight int64
 
 	for _, objRef := range s.obj.Spec.Collectors {
 		nn := types.NamespacedName{
@@ -203,7 +222,9 @@ func (s *Discovery) send(ctx context.Context, resources []resource.Resource) (in
 		inFlight += i
 	}
 
-	return ready, inFlight
+	s.stats.SetReadyCollectors(ready)
+	s.stats.SetInFlightResources(inFlight)
+	s.stats.SetTotalResources(int64(len(resources)))
 }
 
 // discoverPods lists all pods that match the selector and if the scrape annotation
@@ -312,26 +333,37 @@ func (s *Discovery) discoverEndpoints(ctx context.Context, svc corev1.Service, r
 	return nil
 }
 
-func (s *Discovery) updateStatus(ctx context.Context, count int, ready int, inFlight int) error {
+func (s *Discovery) status(ctx context.Context) {
+	ticker := time.NewTicker(DefaultStatusInterval)
+	for {
+		select {
+		case <-s.stopChan:
+			return
+		case <-ticker.C:
+			err := s.updateStatus(ctx)
+			if err != nil {
+				s.logger.Error(err, "unable to update status")
+			}
+		}
+	}
+}
+
+func (s *Discovery) updateStatus(ctx context.Context) error {
 	s.Lock()
 	defer s.Unlock()
 
 	var obj v1beta1.Discovery
-	err := s.cache.Get(ctx, types.NamespacedName{
-		Namespace: s.obj.GetNamespace(),
-		Name:      s.obj.GetName(),
-	}, &obj)
+	err := s.cache.Get(ctx, s.NamespacedName(), &obj)
 	if err != nil {
 		return err
 	}
 
 	obj.Status = v1beta1.DiscoveryStatus{
-		Active:                   s.enabled,
 		LastDiscovered:           metav1.Now(),
-		ReadyCollectors:          ready,
-		TotalCollectors:          len(s.obj.Spec.Collectors),
-		DiscoveredResourcesCount: count,
-		InFlightResources:        inFlight,
+		ReadyCollectors:          s.stats.ReadyCollectors.Load(),
+		TotalCollectors:          int64(len(s.obj.Spec.Collectors)),
+		DiscoveredResourcesCount: s.stats.TotalResources.Load(),
+		InFlightResources:        s.stats.InFlightResources.Load(),
 	}
 
 	s.logger.V(8).Info("updating discovery status", "status", obj.Status)
