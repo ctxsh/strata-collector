@@ -60,22 +60,19 @@ type DiscoverySpec struct {
 
 // DiscoveryStatus represents the status of a discovery service.
 type DiscoveryStatus struct {
-	// Active represents whether or not the discovery service is actively discovering
-	// resources.
-	Active bool `json:"active"`
 	// DiscoveredResourcesCount is the number of resources that have been discovered
 	// by the discovery service in a single run.
-	DiscoveredResourcesCount int `json:"discoveredResourcesCount"`
+	DiscoveredResourcesCount int64 `json:"discoveredResourcesCount"`
 	// LastDiscovered is the last time that the discovery service
 	// ran and discovered resources.
 	LastDiscovered metav1.Time `json:"lastDiscovered"`
 	// ReadyCollectors is the number of upstream collectors that are connected and ready
 	// to recieved the discovered resources.
-	ReadyCollectors int `json:"readyCollectors"`
+	ReadyCollectors int64 `json:"readyCollectors"`
 	// TotalCollectors is the total number of configured collectors.
-	TotalCollectors int `json:"totalCollectors"`
+	TotalCollectors int64 `json:"totalCollectors"`
 	// InFlightResources is the number of resources waiting on the collectors for processing
-	InFlightResources int `json:"inFlightResources"`
+	InFlightResources int64 `json:"inFlightResources"`
 }
 
 // +genclient
@@ -83,7 +80,7 @@ type DiscoveryStatus struct {
 // +k8s:defaulter-gen=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Namespaced,shortName=dx,singular=discovery
-// +kubebuilder:printcolumn:name="Active",type="boolean",JSONPath=".status.active"
+// +kubebuilder:printcolumn:name="Enabled",type="boolean",JSONPath=".spec.enabled"
 // +kubebuilder:printcolumn:name="Ready Collectors",type="integer",JSONPath=".status.readyCollectors"
 // +kubebuilder:printcolumn:name="Total Collectors",type="integer",JSONPath=".status.totalCollectors",priority=1
 // +kubebuilder:printcolumn:name="Discovered",type="integer",JSONPath=".status.discoveredResourcesCount",priority=1
@@ -245,8 +242,6 @@ type CollectorSpec struct {
 
 // CollectorStatus represents the status of a collector pool.
 type CollectorStatus struct {
-	// Enabled represents whether the collector pool is enabled or not.
-	Enabled bool `json:"enabled"`
 	// ID is the unique identifier for the collector pool.  Initially we can use it to
 	// track the processing channels, but I think it would be beneficial to use it to
 	// potentially add to the metrics that are collected as a reference back to the
@@ -255,18 +250,36 @@ type CollectorStatus struct {
 	// so it would only really be useful for short term correlations.  It's going to
 	// be a uuid represented as a string.
 	ID string `json:"id"`
-	// DiscoveryTargetRefs is a list of discovery services that use the collector
-	// pool for processing.
-	Discoveries int64 `json:"discoveries,omitempty"`
+	// RegisteredDiscoveries is the number of discovery services that are
+	// registered to the collector.
+	RegisteredDiscoveries int64 `json:"registeredDiscoveries"`
+	// InFlightResources is the number of queued resources that are ready to
+	// be processed.
+	InFlightResources int64 `json:"inFlightResources"`
+	// TotalSent is the number of metrics that have been sent to the output
+	// successfully.
+	TotalSent int64 `json:"totalSent"`
+	// TotalErrors is the umber of metrics that have failed to be sent to the
+	// output.
+	TotalErrors int64 `json:"totalErrors"`
+	// TotalFiltered is the number of metrics that have been filtered out by
+	// the collector.
+	TotalFiltered int64 `json:"totalFiltered"`
+	// MetricsCollected is the number of metrics collected by the collector.
+	MetricsCollected int64 `json:"metricsCollected"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:defaulter-gen=true
-// +kubebuilder:subresources:status
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Namespaced,shortName=cx,singular=collector
-// +kubebuilder:printcolumn:name="Enabled",type="boolean",JSONPath=".status.enabled"
-// +kubebuilder:printcolumn:name="Discoveries",type="integer",JSONPath=".status.discoveries"
+// +kubebuilder:printcolumn:name="Enabled",type="boolean",JSONPath=".spec.enabled"
+// +kubebuilder:printcolumn:name="Collected",type="integer",JSONPath=".status.metricsCollected"
+// +kubebuilder:printcolumn:name="Sent",type="integer",JSONPath=".status.totalSent",priority=1
+// +kubebuilder:printcolumn:name="Errors",type="integer",JSONPath=".status.totalErrors",priority=1
+// +kubebuilder:printcolumn:name="Filtered",type="integer",JSONPath=".status.totalFiltered",priority=1
+// +kubebuilder:printcolumn:name="Registered",type="integer",JSONPath=".status.registeredDiscoveries",priority=1
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // Collector represents a pool of collection workers that will collect metrics

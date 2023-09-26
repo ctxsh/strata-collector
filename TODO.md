@@ -44,7 +44,7 @@ Tommorrow:
 * [] Flags.
 * [x] Implement filters.
 * [x] Buffer length for collection channels.
-* [] Validation either inline or in the validation hooks.
+* [x] Validation either inline or in the validation hooks.
 * [] Start looking at testing using kubebuilder and controller-runtime as an example.
-* [] Status updates outside of the normal interval runs.
+* [x] Status updates outside of the normal interval runs.
 * [] License headers.

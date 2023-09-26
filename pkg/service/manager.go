@@ -72,8 +72,15 @@ func (m *Manager) DeleteDiscoveryService(key types.NamespacedName) error {
 	return m.registry.DeleteDiscoveryService(key)
 }
 
-func (m *Manager) AddCollectionPool(ctx context.Context, key types.NamespacedName, obj v1beta1.Collector) error {
+func (m *Manager) AddCollectionPool(ctx context.Context, obj *v1beta1.Collector) error {
+	key := types.NamespacedName{
+		Namespace: obj.Namespace,
+		Name:      obj.Name,
+	}
+
 	collector := NewCollectionPool(obj, &CollectionPoolOpts{
+		Cache:    m.cache,
+		Client:   m.client,
 		Logger:   m.logger.WithValues("collector", key),
 		Metrics:  m.metrics,
 		Registry: m.registry,

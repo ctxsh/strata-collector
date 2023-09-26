@@ -17,11 +17,27 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.enabled
+    - jsonPath: .spec.enabled
       name: Enabled
       type: boolean
-    - jsonPath: .status.discoveries
-      name: Discoveries
+    - jsonPath: .status.metricsCollected
+      name: Collected
+      type: integer
+    - jsonPath: .status.totalSent
+      name: Sent
+      priority: 1
+      type: integer
+    - jsonPath: .status.totalErrors
+      name: Errors
+      priority: 1
+      type: integer
+    - jsonPath: .status.totalFiltered
+      name: Filtered
+      priority: 1
+      type: integer
+    - jsonPath: .status.registeredDiscoveries
+      name: Registered
+      priority: 1
       type: integer
     - jsonPath: .metadata.creationTimestamp
       name: Age
@@ -97,20 +113,39 @@ spec:
             type: object
           status:
             properties:
-              discoveries:
-                format: int64
-                type: integer
-              enabled:
-                type: boolean
               id:
                 type: string
+              inFlightResources:
+                format: int64
+                type: integer
+              metricsCollected:
+                format: int64
+                type: integer
+              registeredDiscoveries:
+                format: int64
+                type: integer
+              totalErrors:
+                format: int64
+                type: integer
+              totalFiltered:
+                format: int64
+                type: integer
+              totalSent:
+                format: int64
+                type: integer
             required:
-            - enabled
             - id
+            - inFlightResources
+            - metricsCollected
+            - registeredDiscoveries
+            - totalErrors
+            - totalFiltered
+            - totalSent
             type: object
         required:
         - spec
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      status: {}

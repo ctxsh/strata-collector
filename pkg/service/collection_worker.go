@@ -37,6 +37,7 @@ type CollectionWorkerOpts struct {
 	Output  output.Output
 	Encoder encoder.Encoder
 	Filters *filter.Filter
+	Stats   *CollectionStats
 }
 
 type CollectionWorker struct {
@@ -45,6 +46,7 @@ type CollectionWorker struct {
 	logger     logr.Logger
 	encoder    encoder.Encoder
 	filters    *filter.Filter
+	stats      *CollectionStats
 }
 
 func NewCollectionWorker(opts *CollectionWorkerOpts) *CollectionWorker {
@@ -57,6 +59,7 @@ func NewCollectionWorker(opts *CollectionWorkerOpts) *CollectionWorker {
 		output:  opts.Output,
 		logger:  opts.Logger,
 		filters: opts.Filters,
+		stats:   opts.Stats,
 	}
 }
 
@@ -110,26 +113,34 @@ func (w *CollectionWorker) collect(r resource.Resource) ([]*metric.Metric, error
 		return nil, err
 	}
 
+	w.stats.SetMetricsCollected(len(m))
 	return m, nil
 }
 
 func (w *CollectionWorker) send(metrics []*metric.Metric) error {
+	var sent, errors, filtered int64
+	defer func() {
+		w.stats.SetTotalSent(sent)
+		w.stats.SetTotalErrors(errors)
+		w.stats.SetTotalFiltered(filtered)
+	}()
 
 	for _, m := range metrics {
 		if w.filters.Do(m) {
+			filtered++
 			continue
 		}
 
 		data, err := w.encoder.Encode(m)
 		if err != nil {
-			// TODO: collect errors and send them at the end.
+			errors++
 			w.logger.Error(err, "failed to encode metric", "metric", m)
 			continue
 		}
 
 		if err = w.output.Send(data); err != nil {
-			// TODO: collect errors and send them at the end.
-			return err
+			errors++
+			continue
 		}
 	}
 	return nil

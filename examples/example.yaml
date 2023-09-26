@@ -1,16 +1,26 @@
 apiVersion: strata.ctx.sh/v1beta1
 kind: Discovery
 metadata:
-  name: example
+  name: example-all
   namespace: default
 spec:
-  # resources:
-  #   pods: true
-  #   services: true
-  #   endpoints: true  
-  # selector:
-  #   matchLabels:
-  #     app: example
+  collector:
+    - name: example
+      namespace: default
+---
+apiVersion: strata.ctx.sh/v1beta1
+kind: Discovery
+metadata:
+  name: example-app
+  namespace: default
+spec:
+  resources:
+    pods: true
+    services: false
+    endpoints: false
+  selector:
+    matchLabels:
+      app: example
   collector:
     - name: example
       namespace: default

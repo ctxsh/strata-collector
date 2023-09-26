@@ -49,7 +49,7 @@ func (r *Reconciler) reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.services.AddCollectionPool(ctx, request.NamespacedName, *r.observed.collector); err != nil {
+	if err := r.services.AddCollectionPool(ctx, r.observed.collector.DeepCopy()); err != nil {
 		return requeueResult, err
 	}
 
